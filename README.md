@@ -13,7 +13,7 @@ This project implements a pipeline for ranking features using various methods an
 7. [Contributing](#contributing)
 8. [Contact](#contact)
 
-## Introduction
+## 1. Introduction
 
 This project is designed to facilitate the creation of feature rankings and evaluate the performance of a deep learning model using subsets of these ranked features. The core functionalities include:
 
@@ -22,7 +22,7 @@ This project is designed to facilitate the creation of feature rankings and eval
 
 The project is built on top of PyTorch and includes utilities for handling datasets, training models, and computing feature importance.
 
-## Installation
+## 2.Installation
 
 ### Prerequisites
 
@@ -34,70 +34,87 @@ The project is built on top of PyTorch and includes utilities for handling datas
 1. **Clone the repository:**
 
    ```bash
-   git clone git@github.com:benedikt-hosp/actif.git
+   git clone https://github.com/benedikt-hosp/actif.git
    cd actif
+   ```
 
 2. **Setup the conda environment:**
-	conda env create -f environment.yml
-	conda activate actif_env
-
+    ```
+    conda env create -f environment.yml
+    conda activate actif_env
+    ``` 
+    
 ### Directory Setup
 actif/
 │
-├── data/              # Data files or datasets
-├── notebooks/         # Jupyter notebooks
-├── src/               # Source code
-├── model_archive/     # Pre-trained or saved models
-├── results/           # Output results
-└── environment.yml    # Conda environment setup
 
-### Usage
+├── data/ 
+
+├── notebooks/         
+
+├── src/               
+
+├── model_archive/     
+
+├── results/           
+
+└── environment.yml    
+
+### 3. Usage
 ## Running the Feature Ranking and Model Evaluation
-1. Generate Feature Rankings:
-	To generate feature rankings using various methods, run the script src/FeatureRankingsCreator.py. This script will compute feature importances and save them in the 	FeaturesRankings_Creation directory.
+#### Generate Feature Rankings:
+To generate feature rankings using various methods, run the script src/FeatureRankingsCreator.py. This script will compute feature importances and save them in the 	FeaturesRankings_Creation directory.
+```
+python src/FeatureRankingsCreator.py
+```
+    
+#### Evaluate Model Performance:
 
-	python src/FeatureRankingsCreator.py
-	
-2. Evaluate Model Performance:
-
-	After generating the feature rankings, you can evaluate the model's performance using these rankings. Run the script src/test_performance_of_ranking_by_method.py:
-	
-	python src/test_performance_of_ranking_by_method.py
+After generating the feature rankings, you can evaluate the model's performance using these rankings. Run the script src/test_performance_of_ranking_by_method.py:
+```
+python src/test_performance_of_ranking_by_method.py
+```
 
 This will evaluate the model's performance on subsets of features ranked by different methods.
 
-## Project Structure
+## 4. Project Structure
 
 data/: 		Contains data files or datasets.
+
 notebooks/:	Jupyter notebooks for exploratory data analysis and experiments.
+
 src/:		Source code, including feature ranking methods, model training, and evaluation scripts.
+
 model_archive/: Directory to store pre-trained or saved models.
+
 results/: 	Directory where output results and logs are stored.
+
 environment.yml:Conda environment setup file.
 
 
-## Detailed Code Description
-- ##FeatureRankingsCreator.py: 
+
+## 5. Detailed Code Description
+#### FeatureRankingsCreator.py: 
 This script handles the generation of feature rankings using various methods such as ACTIF, SHAP, Captum, and more.
 test_performance_of_ranking_by_method.py: This script evaluates the model performance using subsets of features ranked by different methods.
 
-- ##RobustVision_Dataset.py:
+#### RobustVision_Dataset.py:
 Handles the loading, processing, and management of the Robust Vision dataset.
 
-- ##FOVAL_Trainer.py:
+#### FOVAL_Trainer.py:
 Contains the model training logic and evaluation functions.
 
-- ## SimpleLSTM_V2.py:
+#### SimpleLSTM_V2.py:
 Defines the Simple LSTM model used in this project.
 
-## License
+## 6. License
 This project is licensed under the terms of the Creative Commons Attribution 4.0 International (CC BY 4.0) license. You are free to share and adapt the material as long as appropriate credit is given.
 
-## Contributing
+## 7. Contributing
 Contributions are welcome! Please open an issue or submit a pull request for any bug fixes, features, or improvements.
 
-## Contact
-For any questions or inquiries, please contact [benedikt.hosp [at] uni-tuebingen.de](mailto:benedikt.hosp@uni-tuebingen.de)
+
+
 
 
 
