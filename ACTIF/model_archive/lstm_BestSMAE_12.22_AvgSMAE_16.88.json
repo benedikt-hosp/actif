@@ -1,0 +1,1 @@
+{"learning_rate": 0.032710957748580696, "batch_size": 460, "weight_decay": 0.09068313284126414, "dropout_rate": 0.24506232752850068, "embed_dim": 1435, "fc1_dim": 1763, "l1_lambda": 0.0, "input_size": 40}
