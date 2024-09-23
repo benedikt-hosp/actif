@@ -7,6 +7,7 @@ import torch
 import pandas as pd
 import numpy as np
 
+from ACTIF.src.ranked_lists import ranked_features_lists
 from FOVAL_Trainer import FOVAL_Trainer
 from FeatureRankingsCreator import FeatureRankingsCreator
 from RobustVision_Dataset import RobustVision_Dataset
@@ -129,8 +130,103 @@ def get_top_features(importances, percentage):
     return top_features
 
 
-def test_performance_of_ranking_by_method(feature_rankings_creator):
+def test_all_lists():
+    test_baseline_model()
+    percentages = [0.1,
+                   0.2,
+                   0.3,
+                   0.4,
+                   # 0.5,
+                   # 0.6
+                   ]
+    results = {}
+
+    for list_name, features in ranked_features_lists.items():
+        results[list_name] = {}
+        print(f'Evaluating Ranking from Method: {list_name}')
+
+        for percent in percentages:
+            top_features = get_top_features(features, percent)
+            feature_count = len(top_features) - 2  # Adjust based on your specific needs
+            foval_trainer.rv_dataset.remaining_features = top_features
+            performance = testModel(model_name=modelName, featureCount=feature_count)
+            results[list_name][f'{int(percent * 100)}%'] = performance
+
+            result_line = f'Method: {list_name}, Percent: {percent * 100}%, Performance: {performance}\n'
+            with open("ACTIF_evaluation_results.txt", "a") as file:
+                file.write(result_line)
+            print(result_line)
+
+            # Manually release memory
+            del top_features
+            gc.collect()
+
+    print("All results:", results)
+    # Optionally, write all results at once if needed
+    with open("ACTIF_evaluation_results.txt", "a") as file:
+        file.write(str(results))
+
+
+def test_multiACTIF():
     percentages = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    results = {}
+
+    # # Baseline performance with full feature set
+    # all_features = FOVAL_Preprocessor.selected_features
+    # feature_count = len(all_features) - 2
+    # foval_trainer.rv_dataset.remaining_features = all_features
+    # full_feature_performance = testModel(model_name=modelName, featureCount=feature_count)
+    # results['Baseline'] = full_feature_performance
+    # with open("ACTIF_evaluation_results.txt", "a") as file:
+    #     file.write(f"Baseline Performance: {full_feature_performance}\n")
+
+    # Define your MultiACTIF list of features
+    multiACTIF = [
+        # 'SubjectID', 'Gt_Depth',
+        'Gaze_Direction_X_Ratio', 'Gaze_Vector_Angle', 'Gaze_Direction_Z_Ratio',
+        'World_Gaze_Origin_L_Z', 'World_Gaze_Direction_R_Z', 'Gaze_Point_Distance',
+        'Gaze_Point_Depth_Difference', 'World_Gaze_Direction_L_X',
+        'Gaze_Point_Euclidean_Distance', 'Relative_Change_Vergence_Angle',
+        'World_Gaze_Direction_R_X', 'Gaze_Direction_Y_Ratio',
+        'Velocity_Gaze_Direction_R_X', 'Acceleration_Gaze_Direction_R_X',
+        'Directional_Magnitude_R', 'Ratio_World_Gaze_Direction_Z',
+        'Angular_Difference_Gaze_Directions', 'Gaze_Direction_Angle',
+        'Delta_Gaze_X', 'World_Gaze_Origin_L_X', 'Delta_Gaze_Y',
+        'Delta_Gaze_Z', 'Ratio_Directional_Magnitude',
+        'Directional_Magnitude_L', 'World_Gaze_Origin_R_Z',
+        'Ratio_World_Gaze_Direction_Y', 'World_Gaze_Direction_L_Z',
+        'Normalized_Vergence_Angle', 'Ratio_World_Gaze_Direction_X',
+        'Ratio_Delta_Gaze_XY', 'Vergence_Angle', 'Angular_Difference_X',
+        'Cosine_Angles', 'Vergence_Depth', 'World_Gaze_Direction_R_Y',
+        'World_Gaze_Direction_L_Y', 'World_Gaze_Origin_R_X',
+        'Directional_Magnitude_Ratio'
+    ]
+
+    results['MultiACTIF'] = {}
+
+    for percent in percentages:
+        top_features = get_top_features(multiACTIF, percent)
+        feature_count = len(top_features) - 2
+        foval_trainer.rv_dataset.remaining_features = top_features
+        performance = testModel(model_name=modelName, featureCount=feature_count)
+        results['MultiACTIF'][f'{int(percent * 100)}%'] = performance
+
+        result_line = f'Method: MultiACTIF, Percent: {percent * 100}%, Performance: {performance}\n'
+        with open("ACTIF_evaluation_results.txt", "a") as file:
+            file.write(result_line)
+        print(result_line)
+
+        # Manually release memory
+        del top_features
+        gc.collect()
+
+    print("All results:", results)
+    # Optionally, write all results at once if needed
+    with open("ACTIF_evaluation_results.txt", "a") as file:
+        file.write(str(results))
+
+
+def test_baseline_model():
     results = {}
 
     # Baseline performance with full feature set
@@ -141,6 +237,12 @@ def test_performance_of_ranking_by_method(feature_rankings_creator):
     results['Baseline'] = full_feature_performance
     with open("ACTIF_evaluation_results.txt", "a") as file:
         file.write(f"Baseline Performance: {full_feature_performance}\n")
+
+
+def test_performance_of_ranking_by_method(feature_rankings_creator):
+    percentages = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    results = {}
+    test_baseline_model()
 
     # Loop through each method
     for method, importances in feature_rankings_creator.feature_importance_results.items():
@@ -175,12 +277,14 @@ if __name__ == '__main__':
     """
     sequence_length = 10  # Define your sequence length
     foval_trainer.sequence_length = sequence_length
+
+    # 1. Dataset = robustvision
     rv_dataset = RobustVision_Dataset(sequence_length=sequence_length)  # Initialize the data processor
     aggregated_data, _ = rv_dataset.read_and_aggregate_data()  # Step 1: Read and aggregate data and clean
     foval_trainer.dataset = aggregated_data
     foval_trainer.rv_dataset = rv_dataset
 
-    # # Assuming 'subject_list' contains the list of unique subjects
+    # Assuming 'subject_list' contains the list of unique subjects
     subject_list = foval_trainer.dataset['SubjectID'].unique()
 
     # Create data splits for LOOCV
@@ -190,19 +294,24 @@ if __name__ == '__main__':
 
     # Define which model to load
     modelName = "lstm_BestSMAE_12.22_AvgSMAE_16.88"
+    # model_path = os.path.join(model_save_dir, modelName)
+    # _, hyperparameters = loadModel(model_path)
+
+    # 2. Dataaset = GIW
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # ACTIF Creation:
     # Calculate feature importance ranking for all methods
     # collect sorted ranking list, memory usage, and computation speed
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    model_path = os.path.join(model_save_dir, modelName)
-    _, hyperparameters = loadModel(model_path)
-    fmv = FeatureRankingsCreator(hyperparameters, foval_trainer, subject_list)
+
+    # fmv = FeatureRankingsCreator(hyperparameters, foval_trainer, subject_list)
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # ACTIF Evaluation:
     # Runs all feature importance lists with 10-60 % of their top features and compares their runtime
     # memory consumption and performance
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    test_performance_of_ranking_by_method(fmv)
+    # test_multiACTIF()
+    test_all_lists()
+    # test_performance_of_ranking_by_method(fmv)

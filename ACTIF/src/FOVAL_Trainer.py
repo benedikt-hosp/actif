@@ -30,7 +30,7 @@ pd.option_context('mode.use_inf_as_na', True)
 print(torch.cuda.device_count())
 print(torch.cuda.get_device_name(0))  # Use this to print the name of the first device
 device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
-n_epochs = 2000
+n_epochs = 500
 # n_epochs = 2
 # n_epochs = 100
 # n_epochs = 500
@@ -228,12 +228,13 @@ class FOVAL_Trainer:
             # Listen for the "q" key press event
             if keyboard.is_pressed('q'):
                 print("Pressed q, skipping epochs.")
-                break  # Exit the inner loop to stop training
+            #    break  # Exit the inner loop to stop training
 
             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
             optimizer.zero_grad()
 
-            y_pred, intermediate_activations = model(X_batch, return_intermediates=True)
+            # y_pred, intermediate_activations = model(X_batch, return_intermediates=False)
+            y_pred = model(X_batch, return_intermediates=False)
             if torch.isnan(y_pred).any():
                 raise ValueError('NaN values in model output')
 
@@ -531,7 +532,8 @@ class FOVAL_Trainer:
         with torch.no_grad():
             for X_batch, y_batch in val_loader:
                 X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-                y_pred, intermediates = model(X_batch, return_intermediates=True)
+                # y_pred, intermediates = model(X_batch, return_intermediates=True)
+                y_pred = model(X_batch, return_intermediates=False)
 
                 # y_pred = model(X_batch)
 
@@ -610,7 +612,7 @@ class FOVAL_Trainer:
 
         if (epoch >= n_epochs - 1) or isBreakLoop:
             # Visualize the activations
-            self.visualize_activations(intermediates, y_batch, self.userFolder, "last_validation")
+            # self.visualize_activations(intermediates, y_batch, self.userFolder, "last_validation")
             # self.update_global_metrics(self.fold_results)
             analyzeResiduals(self.all_predictions_array, self.all_true_values_array)
             # visualizeSingleSubjectPredictions(self.userFolder, self.all_true_values_array, self.all_predictions_array)
@@ -734,7 +736,7 @@ class FOVAL_Trainer:
             return y_transformed
 
     def runConfiguredFold(self, batch_size, embed_dim, dropoutRate, l1_lambda, learning_rate, weight_decay, fc1_dim,
-                          fold_performance, train_loader_0, valid_loader_0=None, test_loader_0=None, beta=0.5,
+                          fold_performance, train_loader_0, valid_loader_0=None, test_loader_0=None, beta=0.75,
                           method=None):
         goToNextOptimStep = False
 
@@ -779,10 +781,10 @@ class FOVAL_Trainer:
                 smae_loss_fn,
                 epoch)
 
-            if keyboard.is_pressed('q'):
-                goToNextOptimStep = True
-                isBreakLoop = True
-                break  # Exit the outer loop to stop training completely for current subject
+            # if keyboard.is_pressed('q'):
+            #     goToNextOptimStep = True
+            #     isBreakLoop = True
+            #     break  # Exit the outer loop to stop training completely for current subject
 
             if valid_loader_0 is not None:
                 isBreakLoop, avg_val_mse, avg_val_rmse, avg_val_mae, avg_val_smae, avg_val_r2, patience_counter, residuals, raw_residuals = self.validate_epoch(
