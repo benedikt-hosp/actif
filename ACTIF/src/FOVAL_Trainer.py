@@ -27,8 +27,8 @@ from Utilities import create_lstm_tensors_dataset, create_dataloaders_dataset, d
 pd.set_option('display.max_columns', None)
 pd.option_context('mode.use_inf_as_na', True)
 
-print(torch.cuda.device_count())
-print(torch.cuda.get_device_name(0))  # Use this to print the name of the first device
+# print(torch.cuda.device_count())
+# print(torch.cuda.get_device_name(0))  # Use this to print the name of the first device
 device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 n_epochs = 500
 # n_epochs = 2
@@ -123,7 +123,7 @@ class FOVAL_Trainer:
         self.name = "DepthEstimator"
         self.input_data = None
         self.model = None
-        print("Device is: ", device)
+        # print("Device is: ", device)
         self.target_transformation = None
         self.transformers = None
         self.sequence_length = None

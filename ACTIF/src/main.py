@@ -7,7 +7,7 @@ import torch
 import pandas as pd
 import numpy as np
 
-from ACTIF.src.ranked_lists import ranked_features_lists
+from ranked_lists import ranked_features_lists
 from FOVAL_Trainer import FOVAL_Trainer
 from FeatureRankingsCreator import FeatureRankingsCreator
 from RobustVision_Dataset import RobustVision_Dataset
@@ -20,8 +20,8 @@ pd.set_option('display.max_columns', None)
 pd.option_context('mode.use_inf_as_na', True)
 
 # ================ Device options
-print(torch.cuda.device_count())
-print(torch.cuda.get_device_name(0))  # Use this to print the name of the first device
+# print(torch.cuda.device_count())
+# print(torch.cuda.get_device_name(0))  # Use this to print the name of the first device
 device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
@@ -135,7 +135,7 @@ def test_all_lists():
     percentages = [0.1,
                    0.2,
                    0.3,
-                   0.4,
+                   # 0.4,
                    # 0.5,
                    # 0.6
                    ]
@@ -168,7 +168,8 @@ def test_all_lists():
 
 
 def test_multiACTIF():
-    percentages = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+    percentages = [0.1, 0.2, 0.3,# 0.4, 0.5, 0.6
+                    ]
     results = {}
 
     # # Baseline performance with full feature set
@@ -294,10 +295,8 @@ if __name__ == '__main__':
 
     # Define which model to load
     modelName = "lstm_BestSMAE_12.22_AvgSMAE_16.88"
-    # model_path = os.path.join(model_save_dir, modelName)
-    # _, hyperparameters = loadModel(model_path)
-
-    # 2. Dataaset = GIW
+    model_path = os.path.join(model_save_dir, modelName)
+    _, hyperparameters = loadModel(model_path)
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # ACTIF Creation:
@@ -305,8 +304,8 @@ if __name__ == '__main__':
     # collect sorted ranking list, memory usage, and computation speed
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
 
-    # fmv = FeatureRankingsCreator(hyperparameters, foval_trainer, subject_list)
-
+    fmv = FeatureRankingsCreator(hyperparameters, foval_trainer, subject_list)
+    fmv.process_methods()
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # ACTIF Evaluation:
     # Runs all feature importance lists with 10-60 % of their top features and compares their runtime
@@ -315,3 +314,11 @@ if __name__ == '__main__':
     # test_multiACTIF()
     test_all_lists()
     # test_performance_of_ranking_by_method(fmv)
+
+
+'''
+1. DeepLift und NISP
+2. Datasets: GIW + TUFTS + 2 andere Tasks als Depth
+3. ACTIF_LIN
+
+'''

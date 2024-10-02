@@ -1,6 +1,0 @@
-Baseline Performance: 10.720257604762004
-Method: mean_features_only, Percent: 10.0%, Performance: 16.22537994762121
-Method: mean_features_only, Percent: 20.0%, Performance: 11.848238022102946
-Method: mean_features_only, Percent: 30.0%, Performance: 10.657928699095374
-Method: mean_features_only, Percent: 40.0%, Performance: 11.186218197720237
-Method: meanstddev_features_only, Percent: 10.0%, Performance: 16.22537994762121

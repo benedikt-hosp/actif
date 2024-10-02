@@ -12,8 +12,8 @@ from torch.utils.data import TensorDataset, DataLoader
 
 from SimpleLSTM import SimpleLSTM_V2
 
-print(torch.cuda.device_count())
-print(torch.cuda.get_device_name(0))  # Use this to print the name of the first device
+# print(torch.cuda.device_count())
+# print(torch.cuda.get_device_name(0))  # Use this to print the name of the first device
 device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 
 
@@ -187,7 +187,7 @@ def create_lstm_tensors_dataset(X, y):
 def create_dataloaders_dataset(features_tensor, targets_tensor, batch_size):
     train_dataset = TensorDataset(features_tensor, targets_tensor)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                              drop_last=False)  # num_workers=2)
+                              drop_last=True,  num_workers=2, pin_memory=True, prefetch_factor=2)
 
     #  Assuming X_train has shape[num_samples, sequence_length, num_features]
     input_size = features_tensor.shape[2]  # Number of features per time step

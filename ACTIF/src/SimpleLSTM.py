@@ -85,6 +85,9 @@ class SimpleLSTM_V2(nn.Module):
         super(SimpleLSTM_V2, self).__init__()
         self.hidden_layer_size = embed_dim
 
+        # Linear layer to transform input features if needed
+        self.input_linear = nn.Linear(in_features=input_size, out_features=input_size)
+
         self.dropout = nn.Dropout(p=dropout_rate)
 
         self.lstm = nn.LSTM(input_size=input_size, num_layers=1, batch_first=True, hidden_size=self.hidden_layer_size)
@@ -96,7 +99,7 @@ class SimpleLSTM_V2(nn.Module):
         self.fc5 = nn.Linear(np.floor_divide(fc1_dim, 4), output_size)  # Final FC layer for output
         self.activation = nn.ELU()
 
-    def forward(self, input_seq, return_intermediates=True):
+    def forward(self, input_seq, return_intermediates=False):
         intermediates = {'Input': input_seq}
 
         lstm_out, _ = self.lstm(input_seq)
