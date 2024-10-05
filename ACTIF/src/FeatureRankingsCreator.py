@@ -15,8 +15,6 @@ from Utilities import define_model_and_optim
 from PyTorchModelWrapper import PyTorchModelWrapper
 from FOVAL_Preprocessor import selected_features
 
-from torch.cuda.amp import autocast, GradScaler
-
 import torch
 from torch.cuda.amp import autocast
 
@@ -362,7 +360,8 @@ class FeatureRankingsCreator:
         mean_shap_values_combined = np.mean(mean_shap_values_timesteps, axis=0)
 
         if mean_shap_values_combined.shape != (54,):
-            logging.error(f"Incorrect shape of mean_shap_values. Expected (54,), got: {mean_shap_values_combined.shape}")
+            logging.error(
+                f"Incorrect shape of mean_shap_values. Expected (54,), got: {mean_shap_values_combined.shape}")
             return None
 
         shap_values_df = pd.DataFrame([mean_shap_values_combined], columns=selected_features2)
@@ -426,6 +425,11 @@ class FeatureRankingsCreator:
 
     def compute_deeplift(self, trained_model, valid_loader, device):
         selected_features2 = [value for value in selected_features if value not in ('SubjectID', 'Gt_Depth')]
+
+        if len(valid_loader) == 0:
+            print("Validation loader is empty. Skipping subject.")
+            return None  # Or log the subject and continue
+
         accumulated_attributions = torch.zeros(10, len(selected_features2), device=device)
         total_batches = 0
 
@@ -451,50 +455,9 @@ class FeatureRankingsCreator:
             print("Finished DEEPLift")
             return results
         else:
-            raise ValueError("No batches processed. Check your data loader and inputs.")
+            print("No batches processed for this subject.")
+            return None  # Skip this subject and return a meaningful placeholder
 
-    # def compute_nisp(self, trained_model, valid_loader, device):
-    #     selected_features2 = [value for value in selected_features if value not in ('SubjectID', 'Gt_Depth')]
-    #     activations = []
-    #
-    #     # Register hook to capture activations of each layer (e.g., LSTM layers)
-    #     def save_activation(name):
-    #         def hook(model, input, output):
-    #             if isinstance(output, tuple):
-    #                 output = output[0]  # Extract the actual output from the LSTM
-    #             activations.append(output.detach())  # Detach to avoid tracking gradients
-    #
-    #         return hook
-    #
-    #     # Hook into all LSTM layers or relevant layers to capture activations
-    #     for name, layer in trained_model.named_modules():
-    #         if isinstance(layer, torch.nn.LSTM):
-    #             layer.register_forward_hook(save_activation(name))
-    #
-    #     trained_model.eval()
-    #     importance_scores = torch.zeros(len(selected_features2), device=device)  # Initialize importance scores
-    #
-    #     for inputs, _ in valid_loader:
-    #         inputs = inputs.to(device)
-    #         outputs = trained_model(inputs)  # Forward pass to trigger hooks and get activations
-    #         # Get importance for each timestep, shape should be (batch_size, sequence_length)
-    #         output_importance = outputs.sum(dim=-1)  # Summing over output features for each timestep
-    #
-    #         # Accumulate importance scores over each timestep
-    #         for activation in reversed(activations):
-    #             # Sum over the sequence (timesteps), then average over the batch
-    #             layer_importance = activation.sum(dim=1).mean(dim=0)
-    #             # Importance scores for the sequence, adjusted by the output importance
-    #             importance_scores += layer_importance * output_importance.mean(dim=0)
-    #
-    #     importance_scores = importance_scores.cpu().numpy()
-    #     feature_importance = [{'feature': feature, 'attribution': importance_scores[i]} for i, feature in
-    #                           enumerate(selected_features2)]
-    #
-    #     return feature_importance
-
-    import torch
-    from torch.cuda.amp import autocast
 
     def compute_nisp(self, trained_model, valid_loader, device, accumulation_steps=1, use_mixed_precision=False):
         selected_features2 = [value for value in selected_features if value not in ('SubjectID', 'Gt_Depth')]
@@ -518,6 +481,11 @@ class FeatureRankingsCreator:
         importance_scores = torch.zeros(len(selected_features2), device=device)  # Initialize importance scores
 
         total_batches = 0  # For accumulation step counting
+
+        # Check if the valid_loader is empty and skip the subject if it is
+        if len(valid_loader) == 0:
+            print("Skipping subject: The validation loader is empty.")
+            return None
 
         for i, (inputs, _) in enumerate(valid_loader):
             inputs = inputs.to(device)
@@ -558,7 +526,7 @@ class FeatureRankingsCreator:
             importance_scores = importance_scores / total_batches
 
             # Ensure the importance scores are moved to CPU and converted to numpy
-            importance_scores = importance_scores.cpu().numpy()
+            importance_scores = importance_scores.detach().cpu().numpy()
 
             # Create a list of feature importances
             feature_importance = [{'feature': feature, 'attribution': importance_scores[i]} for i, feature in
@@ -566,4 +534,5 @@ class FeatureRankingsCreator:
 
             return feature_importance
         else:
-            raise ValueError("No batches processed. Check your data loader and inputs.")
+            print("No batches processed for this subject.")
+            return None
