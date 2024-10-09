@@ -43,6 +43,17 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
+            'shuffle_MEAN',
+            'shuffleMEANSTD',
+            'shuffle_INV',
+            'shuffle_PEN',
+
+            'ablation_MEAN',
+            'ablationMEANSTD',
+            'ablation_INV',
+            'ablation_PEN',
+
+
             'deeplift_zero_MEAN',
             'deeplift_zero_MEANSTD',
             'deeplift_zero_INV',
@@ -56,46 +67,57 @@ class FeatureRankingsCreator:
             'nisp_v1_MEANSTD',
             'nisp_v1_INV',
             'nisp_v1_PEN',
+
             'nisp_v2_MEAN',
             'nisp_v2_MEANSTD',
             'nisp_v2_INV',
             'nisp_v2_PEN',
+
             'nisp_v3_MEAN',
             'nisp_v3_MEANSTD',
             'nisp_v3_INV',
             'nisp_v3_PEN',
+
             'captum_intGrad_v1_MEAN',
             'captum_intGrad_v1_MEANSTD',
             'captum_intGrad_v1_INV',
             'captum_intGrad_v1_PEN',
+
             'captum_intGrad_v2_MEAN',
             'captum_intGrad_v2_MEANSTD',
             'captum_intGrad_v2_INV',
             'captum_intGrad_v2_PEN',
+
             'captum_intGrad_v3_MEAN',
             'captum_intGrad_v3_MEANSTD',
             'captum_intGrad_v3_INV',
             'captum_intGrad_v3_PEN',
+
             'shap_values_v1_MEAN',
             'shap_values_v1_MEANSTD',
             'shap_values_v1_INV',
             'shap_values_v1_PEN',
+
             'shap_values_v2_MEAN',
             'shap_values_v2_MEANSTD',
             'shap_values_v2_INV',
             'shap_values_v2_PEN',
+
             'shap_values_v3_MEAN',
             'shap_values_v3_MEANSTD',
             'shap_values_v3_INV',
             'shap_values_v3_PEN',
+
             'shuffle_MEAN',
             'shuffleMEANSTD',
             'shuffle_INV',
             'shuffle_PEN',
+
             'ablation_MEAN',
             'ablationMEANSTD',
             'ablation_INV',
             'ablation_PEN',
+
             'actif_mean',
             'actif_mean_stddev',
             'actif_inverted_weighted_mean',
@@ -925,39 +947,108 @@ class FeatureRankingsCreator:
         results = [{'feature': feature, 'attribution': attribution} for feature, attribution in shap_values_df.items()]
         return results
 
-    '''
-    =======================================================================================
-    # Utility Functions
-    =======================================================================================
-    '''
-
-    def model_wrapper(self, model, input_tensor):
-        output = model(input_tensor, return_intermediates=False)
-        return output.squeeze(-1)
-
     def feature_shuffling_importances(self, trained_model, valid_loader, actif_variant='mean'):
+        """
+        Compute feature importances using feature shuffling and apply ACTIF aggregation.
+
+        Args:
+            trained_model: The trained PyTorch model.
+            valid_loader: DataLoader for validation data (with sequences).
+            actif_variant: The ACTIF variant to use for aggregation ('mean', 'meanstddev', 'inv', 'pen').
+
+        Returns:
+            List of feature importance based on feature shuffling and the selected ACTIF variant.
+        """
         cols = self.selected_features
-        overall_baseline_mae, y_batch = self.calculateBaseLine(trained_model, valid_loader)
+        device = next(trained_model.parameters()).device  # Ensure we are using the correct device
+
+        # Calculate the baseline MAE (Mean Absolute Error)
+        overall_baseline_mae, _ = self.calculateBaseLine(trained_model, valid_loader)
 
         results = [{'feature': 'BASELINE', 'attribution': overall_baseline_mae}]
         trained_model.eval()
+
+        # Initialize list to collect attributions for each feature
+        all_attributions = np.zeros((len(cols), len(valid_loader)))
+
+        # Iterate through each feature and compute attributions via shuffling
         for k in tqdm(range(len(cols)), desc="Computing feature importance"):
             all_attributions_of_feature_k_as_mae = []
-            for X_batch, y_batch in valid_loader:
+
+            # Loop through batches in the validation loader
+            for i, (X_batch, y_batch) in enumerate(valid_loader):
                 X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+
+                # Shuffle the k-th feature for each sample in the batch
                 X_batch_shuffled = X_batch.clone()
                 indices = torch.randperm(X_batch.size(0))
                 X_batch_shuffled[:, :, k] = X_batch_shuffled[indices, :, k]
 
+                # Disable gradient calculation during evaluation
                 with torch.no_grad():
                     oof_preds_shuffled = trained_model(X_batch_shuffled, return_intermediates=False).squeeze()
+                    # Calculate MAE for shuffled predictions
                     attribution_as_mae = torch.mean(torch.abs(oof_preds_shuffled - y_batch)).item()
-                all_attributions_of_feature_k_as_mae.append(attribution_as_mae)
 
-            all_batches_feature_k_mean_attributions = np.mean(all_attributions_of_feature_k_as_mae)
-            results.append({'feature': cols[k], 'attribution': all_batches_feature_k_mean_attributions})
+                all_attributions_of_feature_k_as_mae.append(attribution_as_mae)
+                all_attributions[k, i] = attribution_as_mae
+
+            # Store the average attribution for feature k
+            results.append({'feature': cols[k], 'attribution': np.mean(all_attributions_of_feature_k_as_mae)})
+
+        # Now apply the selected ACTIF variant on the shuffled attributions
+        mean_attributions = np.mean(all_attributions, axis=1)
+
+        if actif_variant == 'mean':
+            importance, _, _ = self.calculate_actif_mean(mean_attributions)
+        elif actif_variant == 'meanstddev':
+            importance, _, _ = self.calculate_actif_meanstddev(mean_attributions)
+        elif actif_variant == 'inv':
+            importance, _, _ = self.calculate_actif_inverted_weighted_mean(mean_attributions)
+        elif actif_variant == 'pen':
+            importance, _, _ = self.calculate_actif_robust(mean_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Prepare the results with the aggregated importance
+        results = [{'feature': cols[i], 'attribution': importance[i]} for i in range(len(cols))]
 
         return results
+
+    # def feature_shuffling_importances(self, trained_model, valid_loader, actif_variant='mean'):
+    #     cols = self.selected_features
+    #     overall_baseline_mae, y_batch = self.calculateBaseLine(trained_model, valid_loader)
+    #
+    #     results = [{'feature': 'BASELINE', 'attribution': overall_baseline_mae}]
+    #     trained_model.eval()
+    #     for k in tqdm(range(len(cols)), desc="Computing feature importance"):
+    #         all_attributions_of_feature_k_as_mae = []
+    #         for X_batch, y_batch in valid_loader:
+    #             X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+    #             X_batch_shuffled = X_batch.clone()
+    #             indices = torch.randperm(X_batch.size(0))
+    #             X_batch_shuffled[:, :, k] = X_batch_shuffled[indices, :, k]
+    #
+    #             with torch.no_grad():
+    #                 oof_preds_shuffled = trained_model(X_batch_shuffled, return_intermediates=False).squeeze()
+    #                 attribution_as_mae = torch.mean(torch.abs(oof_preds_shuffled - y_batch)).item()
+    #             all_attributions_of_feature_k_as_mae.append(attribution_as_mae)
+    #
+    #         all_batches_feature_k_mean_attributions = np.mean(all_attributions_of_feature_k_as_mae)
+    #         results.append({'feature': cols[k], 'attribution': all_batches_feature_k_mean_attributions})
+    #
+    #     return results
+
+
+    '''
+       =======================================================================================
+       # Utility Functions
+       =======================================================================================
+       '''
+
+    def model_wrapper(self, model, input_tensor):
+        output = model(input_tensor, return_intermediates=False)
+        return output.squeeze(-1)
 
     def calculate_memory_and_execution_time(self, method_func):
         start_time = timeit.default_timer()
@@ -1014,7 +1105,6 @@ class FeatureRankingsCreator:
         filename = f"{self.outputFolder}/{method}.csv"
         mean_importances_sorted.to_csv(filename, index=False)
         logging.info(f"Saved importances for {method} in {filename}")
-
 
     def calculateBaseLine(self, trained_model, valid_loader):
         """
