@@ -23,8 +23,10 @@ torch.backends.cudnn.enabled = False
 
 
 class FeatureRankingsCreator:
-    def __init__(self, modelName, model, hyperparameters, datasetName, dataset):
+    def __init__(self, modelName, model, hyperparameters, datasetName, dataset, raw):
+        self.baseFolder = None
         self.outputFolder = None
+        self.raw = raw
         self.currentModel = model
         self.currentModelName = modelName
         self.currentDatasetName = datasetName
@@ -47,9 +49,9 @@ class FeatureRankingsCreator:
             # 'nisp_v1',      # ok
             # 'nisp_v2',      # ok
             # 'nisp_v3',      # ok
-            # 'captum_intGrad_v1', # zu wenig speicher
-            # 'captum_intGrad_v2', # zu wenig speicher
-            # 'captum_intGrad_v3', # zu wenig speicher
+            # 'captum_intGrad_v1',
+            'captum_intGrad_v2',
+            'captum_intGrad_v3',
             # 'shap_values_v1', #fehler
             # 'shap_values_v2', #fehler
             # 'shap_values_v3', #fehler
@@ -61,12 +63,15 @@ class FeatureRankingsCreator:
             'actif_robust',
             'actif_robust_penHigh',
             'ablation',
-            'actif_lin',
         ]
 
     def setup_directories(self):
-        self.outputFolder = f'../results/' + self.currentModelName + '/' + self.currentDatasetName + '/FeaturesRankings_Creation'
+        folder_type = "raw" if self.raw else "aggregated"
+
+        self.outputFolder = f'../results/' + self.currentModelName + '/' + self.currentDatasetName + '/' + folder_type + '/FeaturesRankings_Creation'
         os.makedirs(self.outputFolder, exist_ok=True)
+        self.baseFolder = os.path.dirname(self.outputFolder)  # This will give the path without
+
 
     # 2.
     def process_methods(self):
@@ -76,14 +81,14 @@ class FeatureRankingsCreator:
             self.sort_importances_based_on_attribution(aggregated_importances, method=method)
 
     # 3.
-    def calculate_ranked_list_by_method(self, method='captum_intGrad'):
+    def calculate_ranked_list_by_method(self, method='captum_intGrad', raw=raw):
         aggregated_importances = []
         all_execution_times = []
         all_memory_usages = []
 
         for test_subject in self.subject_list:
             logging.info(f"Processing subject: {test_subject}")
-            userFolder = f'../results/{self.currentModelName}/{self.currentDatasetName}/{test_subject}'
+            userFolder = f'{self.baseFolder}/{test_subject}'
 
             # create data loaders
             train_loader, valid_loader, input_size = self.getDataLoaders(test_subject)
@@ -115,16 +120,16 @@ class FeatureRankingsCreator:
 
         return train_loader, valid_loader, input_size
 
-    def get_method_function(self, method, trained_model, valid_loader, userFolder):
+    def get_method_function(self, method, trained_model, valid_loader):
         method_functions = {
-            'actif_robust_penHigh': lambda: self.actif_robust_penHigh(userFolder, valid_loader),
-            'actif_mean': lambda: self.actif_mean(userFolder, valid_loader),
-            'actif_mean_stddev': lambda: self.actif_mean_stddev(userFolder, valid_loader),
-            'actif_weighted_mean': lambda: self.actif_weighted_mean(userFolder, valid_loader),
-            'actif_inverted_weighted_mean': lambda: self.actif_inverted_weighted_mean(userFolder, valid_loader),
-            'actif_robust': lambda: self.actif_robust(userFolder, valid_loader),
-            'actif_lin': lambda: self.actif_lin(userFolder, valid_loader),
-            'shuffle': lambda: self.feature_shuffling_importances(trained_model, valid_loader, userFolder),
+            'actif_robust_penHigh': lambda: self.actif_robust_penHigh(valid_loader),
+            'actif_mean': lambda: self.actif_mean(valid_loader),
+            'actif_mean_stddev': lambda: self.actif_mean_stddev(valid_loader),
+            'actif_weighted_mean': lambda: self.actif_weighted_mean(valid_loader),
+            'actif_inverted_weighted_mean': lambda: self.actif_inverted_weighted_mean(valid_loader),
+            'actif_robust': lambda: self.actif_robust(valid_loader),
+            'actif_lin': lambda: self.actif_lin(valid_loader),
+            'shuffle': lambda: self.feature_shuffling_importances(trained_model, valid_loader),
             'ablation': lambda: self.ablation(trained_model, valid_loader),
             'captum_intGrad_v1': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1'),
             'captum_intGrad_v2': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2'),
@@ -605,41 +610,101 @@ class FeatureRankingsCreator:
 
     def compute_intgrad(self, model, valid_loader, version='v1'):
         if version == 'v1':
-            return self.compute_intgrad_configured(model, valid_loader, baseline=torch.zeros_like, steps=100)
+            return self.compute_intgrad_configured(model, valid_loader, baseline_type='zeroes')
         elif version == 'v2':
-            return self.compute_intgrad_configured(model, valid_loader, baseline='random', steps=200)
+            return self.compute_intgrad_configured(model, valid_loader, baseline_type='random')
         elif version == 'v3':
-            return self.compute_intgrad_configured(model, valid_loader, baseline='mean', steps=50)
+            return self.compute_intgrad_configured(model, valid_loader, baseline_type='mean')
         else:
             raise ValueError(f"Unknown baseline type: {version}")
 
-    def compute_intgrad_configured(self, model, valid_loader, baseline, steps=100):
-
-        accumulated_attributions = torch.zeros(10, len(self.selected_features), device=device)
+    def compute_intgrad_configured(self, model, valid_loader, baseline_type='zeroes', steps=100):
+        accumulated_attributions = torch.zeros(len(self.selected_features),
+                                               device=device)  # No need for (10, 38) anymore
         total_batches = 0
 
         model.eval()
+
+        # Loop over validation loader
         for inputs, _ in valid_loader:
             inputs = inputs.to(device)
-            # explainer = IntegratedGradients(model)
+
+            # Define baselines based on the type
+            if baseline_type == 'zeroes':
+                baseline = torch.zeros_like(inputs)
+            elif baseline_type == 'random':
+                baseline = torch.randn_like(inputs)
+            elif baseline_type == 'mean':
+                baseline = torch.mean(inputs, dim=0, keepdim=True).expand_as(inputs)  # Broadcasting mean baseline
+            else:
+                raise ValueError(f"Unsupported baseline type: {baseline_type}")
+
+            explainer = IntegratedGradients(lambda input_batch: model(input_batch))
 
             # Calculate attributions
-            # attributions = explainer.attribute(inputs, baselines=baseline(inputs), n_steps=steps)
-            explainer = IntegratedGradients(lambda input_batch: self.model_wrapper(model, input_batch))
-            attributions = explainer.attribute(inputs)
+            attributions = explainer.attribute(inputs, baselines=baseline)
+            print("Shape of attributions:", attributions.shape)  # Should still be (batch_size, time_steps, features)
 
-            accumulated_attributions += attributions.sum(dim=0)
+            # Sum over the batch (axis=0) and time (axis=1) dimensions
+            summed_attributions = attributions.sum(dim=(0, 1))  # Reduce both batch and time dimensions
+            accumulated_attributions += summed_attributions
             total_batches += 1
 
+        # Final processing of attributions
         if total_batches > 0:
-            mean_attributions = accumulated_attributions / total_batches
-            mean_attributions = mean_attributions.cpu().numpy()
+            mean_attributions = accumulated_attributions / total_batches  # Average over batches
+            mean_attributions = mean_attributions.cpu().numpy()  # Convert to numpy
+
+            print("Shape of mean_attributions:", mean_attributions.shape)  # Should now be (38,)
+            print("Number of selected features:", len(self.selected_features))
+
+            if mean_attributions.shape[0] != len(self.selected_features):
+                raise ValueError(f"Mismatch between attribution shape and number of features. "
+                                 f"Expected {len(self.selected_features)}, got {mean_attributions.shape[0]}")
 
             results = [{'feature': feature, 'attribution': mean_attributions[i]} for i, feature in
                        enumerate(self.selected_features)]
             return results
         else:
             raise ValueError("No batches processed. Check your data loader and inputs.")
+
+        # accumulated_attributions = None
+        # total_batches = 0
+        #
+        # model.eval()
+        # for inputs, _ in valid_loader:
+        #     inputs = inputs.to(device)
+        #
+        #     # Calculate attributions using IntegratedGradients
+        #     explainer = IntegratedGradients(lambda input_batch: self.model_wrapper(model, input_batch))
+        #     attributions = explainer.attribute(inputs, baselines=baseline(inputs), n_steps=steps)
+        #
+        #     # Ensure attributions have the correct shape
+        #     batch_size, time_steps, num_features = attributions.shape
+        #     attributions = attributions.sum(dim=1)  # Sum across time steps
+        #
+        #     # Initialize accumulated_attributions if it's None
+        #     if accumulated_attributions is None:
+        #         accumulated_attributions = torch.zeros(batch_size, num_features, device=device)
+        #
+        #     accumulated_attributions += attributions.sum(dim=0)  # Sum across batches
+        #     total_batches += 1
+        #     torch.cuda.empty_cache()
+        #
+        # if total_batches > 0:
+        #     mean_attributions = accumulated_attributions / total_batches
+        #     mean_attributions = mean_attributions.cpu().numpy()
+        #
+        #     # Make sure mean_attributions has the correct size
+        #     if mean_attributions.shape[0] != len(self.selected_features):
+        #         raise ValueError(f"Mismatch: mean_attributions has shape {mean_attributions.shape} "
+        #                          f"but expected {len(self.selected_features)} features.")
+        #
+        #     results = [{'feature': feature, 'attribution': mean_attributions[i]} for i, feature in
+        #                enumerate(self.selected_features)]
+        #     return results
+        # else:
+        #     raise ValueError("No batches processed. Check your data loader and inputs.")
 
     '''
         SHAP Values
@@ -691,18 +756,16 @@ class FeatureRankingsCreator:
         ACTIF HL
     '''
 
-    def actif_lin(self, userFolder, valid_loader):
-        pass
+
 
     def model_wrapper(self, model, input_tensor):
         output = model(input_tensor, return_intermediates=False)
         return output.squeeze(-1)
 
-    def feature_shuffling_importances(self, trained_model, valid_loader, userfolder):
+    def feature_shuffling_importances(self, trained_model, valid_loader):
         cols = self.selected_features
         overall_baseline_mae, y_batch = self.calculateBaseLine(trained_model, valid_loader)
 
-        # self.de.visualize_activations(intermediate_activations, y_batch, userfolder=userfolder, name="baseline")
         results = [{'feature': 'BASELINE', 'attribution': overall_baseline_mae}]
         trained_model.eval()
         for k in tqdm(range(len(cols)), desc="Computing feature importance"):
@@ -721,18 +784,7 @@ class FeatureRankingsCreator:
             all_batches_feature_k_mean_attributions = np.mean(all_attributions_of_feature_k_as_mae)
             results.append({'feature': cols[k], 'attribution': all_batches_feature_k_mean_attributions})
 
-        df = pd.DataFrame(results)
-        df_sorted = df.sort_values(by='attribution', ascending=False)
-        sns.set(style="darkgrid")
-        plt.figure(figsize=(10, 8))
-        bar_colors = ['#376B74' if x > 0 else '#993768' for x in df_sorted['attribution']]
-        plt.barh(df_sorted['feature'], df_sorted['attribution'], color=bar_colors)
-        plt.xlabel('Change in MAE (Importance)')
-        plt.title('Feature Importance (By Permutation Impact)')
-        plt.tight_layout()
-        plt.gca().invert_yaxis()
-        plt.savefig(f"{userfolder}/FeatureShuffling_Sorted.png", format='png', dpi=300, bbox_inches='tight')
-        plt.close()
+
 
         return results
 
@@ -767,7 +819,7 @@ class FeatureRankingsCreator:
         df_timing.to_csv(file_path, mode='a', index=False, header=header)
         logging.info(f"Appended average execution times to '{file_path}'")
 
-    def sort_importances_based_on_attribution(self, df_importances, method=None):
+    def sort_importances_based_on_attribution(self, df_importances, method=None, raw=raw):
         logging.info(f"Sorting importances for method {method}")
         mean_importances = df_importances.groupby('feature')['attribution'].mean().reset_index()
         mean_importances_sorted = mean_importances.sort_values(by='attribution', ascending=False)

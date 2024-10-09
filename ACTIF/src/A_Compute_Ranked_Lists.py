@@ -61,10 +61,10 @@ if __name__ == '__main__':
     dataset.load_data()
 
     model, hyperparameters = loadFOVALModel(model_path="../models/foval/config/foval")
-
+    raw = True
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 3. Create Ranked Lists
     # ACTIF Creation: Calculate feature importance ranking for all methods collect sorted ranking list, memory usage, and computation speed
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    fmv = FeatureRankingsCreator(modelName='Foval', model=model, hyperparameters=hyperparameters, datasetName='robustvision', dataset=dataset)
+    fmv = FeatureRankingsCreator(modelName='Foval', model=model, hyperparameters=hyperparameters, datasetName='robustvision', dataset=dataset, raw=raw)
     fmv.process_methods()
