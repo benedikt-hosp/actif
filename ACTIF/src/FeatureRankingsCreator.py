@@ -43,26 +43,64 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
-            # 'deeplift_zero',
-            # 'deeplift_random',
-            # 'deeplift_mean',    # ok
-            # 'nisp_v1',      # ok
-            # 'nisp_v2',      # ok
-            # 'nisp_v3',      # ok
-            # 'captum_intGrad_v1',
-            'captum_intGrad_v2',
-            'captum_intGrad_v3',
-            # 'shap_values_v1', #fehler
-            # 'shap_values_v2', #fehler
-            # 'shap_values_v3', #fehler
-            'shuffle',
+            'deeplift_zero_MEAN',
+            'deeplift_zero_MEANSTD',
+            'deeplift_zero_INV',
+            'deeplift_zero_PEN',
+            'deeplift_random_MEAN',
+            'deeplift_random_MEANSTD',
+            'deeplift_random_INV',
+            'deeplift_random_PEN',
+
+            'nisp_v1_MEAN',
+            'nisp_v1_MEANSTD',
+            'nisp_v1_INV',
+            'nisp_v1_PEN',
+            'nisp_v2_MEAN',
+            'nisp_v2_MEANSTD',
+            'nisp_v2_INV',
+            'nisp_v2_PEN',
+            'nisp_v3_MEAN',
+            'nisp_v3_MEANSTD',
+            'nisp_v3_INV',
+            'nisp_v3_PEN',
+            'captum_intGrad_v1_MEAN',
+            'captum_intGrad_v1_MEANSTD',
+            'captum_intGrad_v1_INV',
+            'captum_intGrad_v1_PEN',
+            'captum_intGrad_v2_MEAN',
+            'captum_intGrad_v2_MEANSTD',
+            'captum_intGrad_v2_INV',
+            'captum_intGrad_v2_PEN',
+            'captum_intGrad_v3_MEAN',
+            'captum_intGrad_v3_MEANSTD',
+            'captum_intGrad_v3_INV',
+            'captum_intGrad_v3_PEN',
+            'shap_values_v1_MEAN',
+            'shap_values_v1_MEANSTD',
+            'shap_values_v1_INV',
+            'shap_values_v1_PEN',
+            'shap_values_v2_MEAN',
+            'shap_values_v2_MEANSTD',
+            'shap_values_v2_INV',
+            'shap_values_v2_PEN',
+            'shap_values_v3_MEAN',
+            'shap_values_v3_MEANSTD',
+            'shap_values_v3_INV',
+            'shap_values_v3_PEN',
+            'shuffle_MEAN',
+            'shuffleMEANSTD',
+            'shuffle_INV',
+            'shuffle_PEN',
+            'ablation_MEAN',
+            'ablationMEANSTD',
+            'ablation_INV',
+            'ablation_PEN',
             'actif_mean',
             'actif_mean_stddev',
-            'actif_weighted_mean',
             'actif_inverted_weighted_mean',
             'actif_robust',
-            'actif_robust_penHigh',
-            'ablation',
+
         ]
 
     def setup_directories(self):
@@ -72,7 +110,6 @@ class FeatureRankingsCreator:
         os.makedirs(self.outputFolder, exist_ok=True)
         self.baseFolder = os.path.dirname(self.outputFolder)  # This will give the path without
 
-
     # 2.
     def process_methods(self):
         for method in self.methods:
@@ -81,19 +118,19 @@ class FeatureRankingsCreator:
             self.sort_importances_based_on_attribution(aggregated_importances, method=method)
 
     # 3.
-    def calculate_ranked_list_by_method(self, method='captum_intGrad', raw=raw):
+    def calculate_ranked_list_by_method(self, method='captum_intGrad'):
         aggregated_importances = []
         all_execution_times = []
         all_memory_usages = []
 
         for test_subject in self.subject_list:
             logging.info(f"Processing subject: {test_subject}")
-            userFolder = f'{self.baseFolder}/{test_subject}'
+            # userFolder = f'{self.baseFolder}/{test_subject}'
 
             # create data loaders
             train_loader, valid_loader, input_size = self.getDataLoaders(test_subject)
 
-            method_func = self.get_method_function(method, self.currentModel, valid_loader, userFolder)
+            method_func = self.get_method_function(method, self.currentModel, valid_loader)
             if method_func:
                 execution_time, mem_usage, subject_importances = self.calculate_memory_and_execution_time(method_func)
                 if subject_importances:
@@ -122,96 +159,159 @@ class FeatureRankingsCreator:
 
     def get_method_function(self, method, trained_model, valid_loader):
         method_functions = {
-            'actif_robust_penHigh': lambda: self.actif_robust_penHigh(valid_loader),
+            # Actif on Input Methods
             'actif_mean': lambda: self.actif_mean(valid_loader),
             'actif_mean_stddev': lambda: self.actif_mean_stddev(valid_loader),
-            'actif_weighted_mean': lambda: self.actif_weighted_mean(valid_loader),
             'actif_inverted_weighted_mean': lambda: self.actif_inverted_weighted_mean(valid_loader),
             'actif_robust': lambda: self.actif_robust(valid_loader),
-            'actif_lin': lambda: self.actif_lin(valid_loader),
-            'shuffle': lambda: self.feature_shuffling_importances(trained_model, valid_loader),
-            'ablation': lambda: self.ablation(trained_model, valid_loader),
-            'captum_intGrad_v1': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1'),
-            'captum_intGrad_v2': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2'),
-            'captum_intGrad_v3': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3'),
-            'shap_values_v1': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1'),
-            'shap_values_v2': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2'),
-            'shap_values_v3': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3'),
-            'deeplift_zero': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero'),
-            'deeplift_random': lambda: self.compute_deeplift(trained_model, valid_loader, device,
-                                                             baseline_type='random'),
-            'deeplift_mean': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean'),
-            'nisp_v1': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1'),
-            'nisp_v2': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2'),
-            'nisp_v3': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3')
+
+            # Shuffle Methods
+            'shuffle_MEAN': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='mean'),
+            'shuffle_MEANSTD': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='meanstd'),
+            'shuffle_INV': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='inv'),
+            'shuffle_PEN': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='pen'),
+
+            # Ablation Methods
+            'ablation_MEAN': lambda: self.ablation(trained_model, valid_loader, actif_variant='mean'),
+            'ablation_MEANSTD': lambda: self.ablation(trained_model, valid_loader, actif_variant='meanstd'),
+            'ablation_INV': lambda: self.ablation(trained_model, valid_loader, actif_variant='inv'),
+            'ablation_PEN': lambda: self.ablation(trained_model, valid_loader, actif_variant='pen'),
+
+            # Captum Integrated Gradients Methods (v1, v2, v3)
+            'captum_intGrad_v1_MEAN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='mean'),
+            'captum_intGrad_v1_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='meanstddev'),
+            'captum_intGrad_v1_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='inverted_weighted_mean'),
+            'captum_intGrad_v1_PEN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='robust'),
+
+            'captum_intGrad_v2_MEAN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='mean'),
+            'captum_intGrad_v2_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='meanstddev'),
+            'captum_intGrad_v2_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='inverted_weighted_mean'),
+            'captum_intGrad_v2_PEN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='robust'),
+
+            'captum_intGrad_v3_MEAN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='mean'),
+            'captum_intGrad_v3_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='meanstddev'),
+            'captum_intGrad_v3_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='inverted_weighted_mean'),
+            'captum_intGrad_v3_PEN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='robust'),
+
+            # SHAP Values Methods (v1, v2, v3)
+            'shap_values_v1_MEAN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='mean'),
+            'shap_values_v1_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='meanstddev'),
+            'shap_values_v1_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='inverted_weighted_mean'),
+            'shap_values_v1_PEN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='robust'),
+
+            'shap_values_v2_MEAN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='mean'),
+            'shap_values_v2_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='meanstddev'),
+            'shap_values_v2_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='inverted_weighted_mean'),
+            'shap_values_v2_PEN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='robust'),
+
+            'shap_values_v3_MEAN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='mean'),
+            'shap_values_v3_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='meanstddev'),
+            'shap_values_v3_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='inverted_weighted_mean'),
+            'shap_values_v3_PEN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='robust'),
+
+            # DeepLIFT Methods with Zero, Random, and Mean Baseline Types
+            'deeplift_zero_MEAN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='mean'),
+            'deeplift_zero_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='meanstddev'),
+            'deeplift_zero_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='inverted_weighted_mean'),
+            'deeplift_zero_PEN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='robust'),
+
+            'deeplift_random_MEAN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='mean'),
+            'deeplift_random_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='meanstddev'),
+            'deeplift_random_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='inverted_weighted_mean'),
+            'deeplift_random_PEN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='robust'),
+
+            'deeplift_mean_MEAN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='mean'),
+            'deeplift_mean_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='meanstddev'),
+            'deeplift_mean_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='inverted_weighted_mean'),
+            'deeplift_mean_PEN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='robust'),
+
+            # NISP Methods (v1, v2, v3)
+            'nisp_v1_MEAN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='mean'),
+            'nisp_v1_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='meanstddev'),
+            'nisp_v1_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='inverted_weighted_mean'),
+            'nisp_v1_PEN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='robust'),
+
+            'nisp_v2_MEAN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='mean'),
+            'nisp_v2_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='meanstddev'),
+            'nisp_v2_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='inverted_weighted_mean'),
+            'nisp_v2_PEN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='robust'),
+
+            'nisp_v3_MEAN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='mean'),
+            'nisp_v3_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='meanstddev'),
+            'nisp_v3_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='inverted_weighted_mean'),
+            'nisp_v3_PEN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='robust'),
         }
+
         return method_functions.get(method, None)
 
     '''
-        ACTIF Variants
+    =======================================================================================
+    # ACTIF Variants
+    =======================================================================================
     '''
-    def actif_mean(self, user_folder, valid_loader):
-        return self.actif_calculation(user_folder, self.calculate_actif_mean, valid_loader, False)
 
-    def actif_mean_stddev(self, user_folder, valid_loader):
-        return self.actif_calculation(user_folder, self.calculate_actif_meanstddev, valid_loader, False)
+    def actif_mean(self, valid_loader):
+        return self.actif_calculation(self.calculate_actif_mean, valid_loader, False)
 
-    def actif_weighted_mean(self, user_folder, valid_loader):
-        return self.actif_calculation(user_folder, self.calculate_actif_weighted_mean, valid_loader, False)
+    def actif_mean_stddev(self, valid_loader):
+        return self.actif_calculation(self.calculate_actif_meanstddev, valid_loader, False)
 
-    def actif_inverted_weighted_mean(self, user_folder, valid_loader):
-        return self.actif_calculation(user_folder, self.calculate_actif_inverted_weighted_mean, valid_loader, False)
+    def actif_weighted_mean(self, valid_loader):
+        return self.actif_calculation(self.calculate_actif_weighted_mean, valid_loader, False)
 
-    def actif_robust(self, user_folder, valid_loader):
-        return self.actif_calculation(user_folder, self.calculate_actif_robust, valid_loader, False)
+    def actif_inverted_weighted_mean(self, valid_loader):
+        return self.actif_calculation(self.calculate_actif_inverted_weighted_mean, valid_loader, False)
 
-    def actif_robust_penHigh(self, user_folder, valid_loader):
-        return self.actif_calculation(user_folder, self.calculate_actif_robust_penHigh, valid_loader, False)
+    def actif_robust(self, valid_loader):
+        return self.actif_calculation(self.calculate_actif_robust, valid_loader, False)
 
-    def actif_calculation(self, user_folder, calculation_function, valid_loader, use_layers):
+    # def actif_robust_penHigh(self,  valid_loader):
+    #     return self.actif_calculation(self.calculate_actif_robust_penHigh, valid_loader, False)
+
+    def actif_calculation(self, calculation_function, valid_loader, use_layers):
         all_importances = []
 
-        if use_layers:
-            activation_file_path = os.path.join(user_folder, 'intermediates_activations.npy')
+        # if use_layers:
+        #     activation_file_path = os.path.join(user_folder, 'intermediates_activations.npy')
+        #
+        #     if os.path.exists(activation_file_path):
+        #         activations_data = np.load(activation_file_path, allow_pickle=True).item()
+        #         layer_activation = list(activations_data.values())[1]
+        #
+        #         if isinstance(layer_activation, np.ndarray) and layer_activation.size > 0:
+        #             if layer_activation.ndim > 2:
+        #                 layer_activation = np.mean(layer_activation, axis=1)
+        #
+        #             importance, _, _ = calculation_function(layer_activation)
+        #             all_importances.append(importance)
+        #
+        # else:
+        total_sum = None
+        total_count = 0
 
-            if os.path.exists(activation_file_path):
-                activations_data = np.load(activation_file_path, allow_pickle=True).item()
-                layer_activation = list(activations_data.values())[1]
+        # Disable gradient calculation to save memory during inference
+        with torch.no_grad():
+            # Loop through the validation loader batch by batch
+            for batch in valid_loader:
+                inputs, _ = batch  # Assuming batch returns (inputs, labels)
+                inputs = inputs.to(device)  # Move inputs to the appropriate device
 
-                if isinstance(layer_activation, np.ndarray) and layer_activation.size > 0:
-                    if layer_activation.ndim > 2:
-                        layer_activation = np.mean(layer_activation, axis=1)
+                # inputs shape: [batch_size, time_steps, num_features]
+                # batch_size, time_steps, num_features = inputs.shape
 
-                    importance, _, _ = calculation_function(layer_activation)
-                    all_importances.append(importance)
+                # Convert inputs to numpy if needed, and compute mean activations over time
+                inputs_np = inputs.cpu().numpy()  # Convert inputs to numpy array
 
-        else:
-            total_sum = None
-            total_count = 0
+                # Compute mean activations over time (axis=1) for each feature
+                mean_activation = np.mean(np.abs(inputs_np), axis=1)  # Mean over time steps
 
-            # Disable gradient calculation to save memory during inference
-            with torch.no_grad():
-                # Loop through the validation loader batch by batch
-                for batch in valid_loader:
-                    inputs, _ = batch  # Assuming batch returns (inputs, labels)
-                    inputs = inputs.to(device)  # Move inputs to the appropriate device
+                # Call the calculation function (e.g., actif_mean) with the mean activations
+                importance, _, _ = calculation_function(mean_activation)
+                all_importances.append(importance)
 
-                    # inputs shape: [batch_size, time_steps, num_features]
-                    # batch_size, time_steps, num_features = inputs.shape
-
-                    # Convert inputs to numpy if needed, and compute mean activations over time
-                    inputs_np = inputs.cpu().numpy()  # Convert inputs to numpy array
-
-                    # Compute mean activations over time (axis=1) for each feature
-                    mean_activation = np.mean(np.abs(inputs_np), axis=1)  # Mean over time steps
-
-                    # Call the calculation function (e.g., actif_mean) with the mean activations
-                    importance, _, _ = calculation_function(mean_activation)
-                    all_importances.append(importance)
-
-                    # Clear GPU cache after each batch to prevent memory buildup
-                    del inputs
-                    torch.cuda.empty_cache()
+                # Clear GPU cache after each batch to prevent memory buildup
+                del inputs
+                torch.cuda.empty_cache()
 
         # Aggregate all importances
         if all_importances:
@@ -261,28 +361,28 @@ class FeatureRankingsCreator:
         weighted_importance = mean_activation * std_activation  # Multiply mean by stddev to get importance
         return weighted_importance, mean_activation, std_activation
 
-    def calculate_actif_weighted_mean(self, activation):
-        """
-        Calculate a weighted mean of normalized mean activations and standard deviations.
-
-        Args:
-            activation (np.ndarray): The input activations or features, shape (num_samples, num_features).
-
-        Returns:
-            adjusted_importance (np.ndarray): Weighted importance of normalized mean and stddev.
-        """
-        activation_abs = np.abs(activation)
-        mean_activation = np.mean(activation_abs, axis=0)  # Mean over samples
-        std_activation = np.std(activation_abs, axis=0)  # Standard deviation over samples
-
-        # Normalize mean and stddev
-        normalized_mean = (mean_activation - np.min(mean_activation)) / (
-                np.max(mean_activation) - np.min(mean_activation))
-        normalized_std = (std_activation - np.min(std_activation)) / (np.max(std_activation) - np.min(std_activation))
-
-        # Calculate weighted mean of normalized values
-        adjusted_importance = (normalized_mean + normalized_std) / 2
-        return adjusted_importance, mean_activation, std_activation
+    # def calculate_actif_weighted_mean(self, activation):
+    #     """
+    #     Calculate a weighted mean of normalized mean activations and standard deviations.
+    #
+    #     Args:
+    #         activation (np.ndarray): The input activations or features, shape (num_samples, num_features).
+    #
+    #     Returns:
+    #         adjusted_importance (np.ndarray): Weighted importance of normalized mean and stddev.
+    #     """
+    #     activation_abs = np.abs(activation)
+    #     mean_activation = np.mean(activation_abs, axis=0)  # Mean over samples
+    #     std_activation = np.std(activation_abs, axis=0)  # Standard deviation over samples
+    #
+    #     # Normalize mean and stddev
+    #     normalized_mean = (mean_activation - np.min(mean_activation)) / (
+    #             np.max(mean_activation) - np.min(mean_activation))
+    #     normalized_std = (std_activation - np.min(std_activation)) / (np.max(std_activation) - np.min(std_activation))
+    #
+    #     # Calculate weighted mean of normalized values
+    #     adjusted_importance = (normalized_mean + normalized_std) / 2
+    #     return adjusted_importance, mean_activation, std_activation
 
     def calculate_actif_inverted_weighted_mean(self, activation):
         """
@@ -332,75 +432,125 @@ class FeatureRankingsCreator:
 
         return adjusted_importance, mean_activation, std_activation
 
-    def calculate_actif_robust_penHigh(self, activations, epsilon=0.01, min_std_threshold=0.01):
-        activation_abs = np.abs(activations)
-        mean_activation = np.mean(activation_abs, axis=0)
-        std_activation = np.std(activation_abs, axis=0)
+    # def calculate_actif_robust_penHigh(self, activations, epsilon=0.01, min_std_threshold=0.01):
+    #     activation_abs = np.abs(activations)
+    #     mean_activation = np.mean(activation_abs, axis=0)
+    #     std_activation = np.std(activation_abs, axis=0)
+    #
+    #     normalized_mean = (mean_activation - np.min(mean_activation)) / (
+    #             np.max(mean_activation) - np.min(mean_activation) + epsilon)
+    #     transformed_std = np.exp(-std_activation / min_std_threshold)
+    #     adjusted_importance = normalized_mean * transformed_std
+    #
+    #     return adjusted_importance, mean_activation, std_activation
 
-        normalized_mean = (mean_activation - np.min(mean_activation)) / (
-                np.max(mean_activation) - np.min(mean_activation) + epsilon)
-        transformed_std = np.exp(-std_activation / min_std_threshold)
-        adjusted_importance = normalized_mean * transformed_std
-
-        return adjusted_importance, mean_activation, std_activation
+    '''
+    =======================================================================================
+    # Established Methods
+    =======================================================================================
+    '''
 
     '''
         Ablation
     '''
-    def ablation(self, model, valid_loader):
+
+    def ablation(self, model, valid_loader, actif='mean'):
+        """
+        Perform feature ablation and aggregate the attributions using the specified ACTIF variant.
+
+        Args:
+            model: The trained PyTorch model.
+            valid_loader: DataLoader for validation data (with sequences).
+            actif: The ACTIF variant to use for aggregation ('mean', 'meanstddev', 'inv', 'pen').
+
+        Returns:
+            List of feature importance based on ablation and the selected ACTIF variant.
+        """
         model.eval()
+        device = next(model.parameters()).device  # Ensure we are using the right device
+
+        # Initialize feature ablation from Captum
         feature_ablation = FeatureAblation(lambda input_batch: self.model_wrapper(model, input_batch))
 
-        aggregated_attributions = torch.zeros(10, len(self.selected_features)).to(device)
+        # Initialize tensor to accumulate attributions
+        aggregated_attributions = torch.zeros(len(self.selected_features)).to(device)
         instance_count = 0
 
+        # Perform feature ablation for each batch in the validation loader
         for input_batch, _ in valid_loader:
             input_batch = input_batch.to(device)
+
+            # Compute attributions using feature ablation
             attribution = feature_ablation.attribute(input_batch)
+
+            # Sum the attributions across the batch
             aggregated_attributions += attribution.sum(dim=0)
             instance_count += input_batch.size(0)
 
-        mean_attributions = aggregated_attributions.cpu().numpy() / instance_count
-        mean_attributions = mean_attributions.mean(axis=0)
+        # Compute the mean attributions across all instances
+        mean_attributions = (aggregated_attributions / instance_count).cpu().numpy()
 
-        results = [{'feature': feature, 'attribution': mean_attributions[i]} for i, feature in
+        # Apply ACTIF variant for aggregation
+        if actif == 'mean':
+            importance, _, _ = self.calculate_actif_mean(mean_attributions)
+        elif actif == 'meanstddev':
+            importance, _, _ = self.calculate_actif_meanstddev(mean_attributions)
+        elif actif == 'inv':
+            importance, _, _ = self.calculate_actif_inverted_weighted_mean(mean_attributions)
+        elif actif == 'pen':
+            importance, _, _ = self.calculate_actif_robust(mean_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif}")
+
+        # Prepare the results as a list of dictionaries
+        results = [{'feature': feature, 'attribution': importance[i]} for i, feature in
                    enumerate(self.selected_features)]
+
         return results
 
-    # def captum_intGrad(self, model, valid_loader):
-    #     accumulated_attributions = torch.zeros(10, len(self.selected_features), device=device)
-    #     total_batches = 0
-    #
+    # def ablation(self, model, valid_loader):
     #     model.eval()
-    #     for inputs, _ in valid_loader:
-    #         inputs = inputs.to(device)
-    #         explainer = IntegratedGradients(lambda input_batch: self.model_wrapper(model, input_batch))
-    #         attributions = explainer.attribute(inputs)
-    #         accumulated_attributions += attributions.sum(dim=0)
-    #         total_batches += 1
+    #     feature_ablation = FeatureAblation(lambda input_batch: self.model_wrapper(model, input_batch))
     #
-    #     if total_batches > 0:
-    #         mean_attributions = accumulated_attributions / total_batches
-    #         mean_attributions = mean_attributions.cpu()
+    #     aggregated_attributions = torch.zeros(10, len(self.selected_features)).to(device)
+    #     instance_count = 0
     #
-    #         attributions_df = pd.DataFrame(mean_attributions.numpy(), columns=self.selected_features)
-    #         mean_abs_attributions = attributions_df.abs().mean()
-    #         feature_importance = mean_abs_attributions.sort_values(ascending=False)
+    #     for input_batch, _ in valid_loader:
+    #         input_batch = input_batch.to(device)
+    #         attribution = feature_ablation.attribute(input_batch)
+    #         aggregated_attributions += attribution.sum(dim=0)
+    #         instance_count += input_batch.size(0)
     #
-    #         results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
-    #                    feature_importance.items()]
-    #         return results
-    #     else:
-    #         raise ValueError("No batches processed. Check your data loader and inputs.")
+    #     mean_attributions = aggregated_attributions.cpu().numpy() / instance_count
+    #     mean_attributions = mean_attributions.mean(axis=0)
+    #
+    #     results = [{'feature': feature, 'attribution': mean_attributions[i]} for i, feature in
+    #                enumerate(self.selected_features)]
+    #     return results
 
     '''
         Deep Lift
     '''
-    def compute_deeplift(self, trained_model, valid_loader, device, baseline_type='zero'):
-        accumulated_attributions = torch.zeros(10, len(self.selected_features), device=device)
+
+    def compute_deeplift(self, trained_model, valid_loader, device, baseline_type='zero', actif_variant='mean'):
+        """
+        Compute the feature attributions using DeepLIFT and aggregate the attributions using the selected ACTIF variant.
+
+        Args:
+            trained_model: The trained PyTorch model.
+            valid_loader: DataLoader for validation data (with sequences).
+            device: Device (CPU or GPU) to perform computations.
+            baseline_type: Type of baseline to use for DeepLIFT ('zero', 'random', 'mean').
+            actif_variant: The ACTIF variant to use for aggregation ('mean', 'meanstddev', 'inverted_weighted_mean', 'robust').
+
+        Returns:
+            List of feature importance based on DeepLIFT and the selected ACTIF variant.
+        """
+        # Initialize a tensor to accumulate the attributions
+        accumulated_attributions = torch.zeros(len(self.selected_features), device=device)
         total_batches = 0
 
-        trained_model.eval()  # Put model in evaluation mode
+        trained_model.eval()  # Put the model into evaluation mode
 
         for inputs, _ in valid_loader:
             inputs = inputs.to(device)
@@ -413,40 +563,101 @@ class FeatureRankingsCreator:
             elif baseline_type == 'mean':
                 # Compute the mean baseline (per feature) along dimension 0
                 mean_baseline = torch.mean(inputs, dim=0)
-
                 # Expand the mean_baseline to match the shape of the input
                 baselines = mean_baseline.expand_as(inputs)
-                # baselines = torch.full_like(inputs, torch.mean(inputs, dim=0).)  # Mean baseline (per feature)
             else:
                 raise ValueError(f"Unknown baseline type: {baseline_type}")
 
-            explainer = DeepLift(trained_model)  # Initialize DeepLIFT with the model
-            attributions = explainer.attribute(inputs, baselines=baselines)  # Use the chosen baseline
+            # Initialize DeepLIFT with the model
+            explainer = DeepLift(trained_model)
+            # Compute attributions using DeepLIFT with the given baseline
+            attributions = explainer.attribute(inputs, baselines=baselines)
+
+            # Sum the attributions across the batch (keeping the feature axis)
             accumulated_attributions += attributions.sum(dim=0)
             total_batches += 1
 
         if total_batches > 0:
-            # Calculate the mean attributions across batches
+            # Calculate the mean attributions across all batches
             mean_attributions = (accumulated_attributions / total_batches).detach().cpu().numpy()
 
-            # Store the attributions as a dataframe
-            attributions_df = pd.DataFrame(mean_attributions, columns=self.selected_features)
+            # Now, apply the selected ACTIF variant for feature importance aggregation
+            if actif_variant == 'mean':
+                importance, _, _ = self.calculate_actif_mean(mean_attributions)
+            elif actif_variant == 'meanstddev':
+                importance, _, _ = self.calculate_actif_meanstddev(mean_attributions)
+            elif actif_variant == 'inverted_weighted_mean':
+                importance, _, _ = self.calculate_actif_inverted_weighted_mean(mean_attributions)
+            elif actif_variant == 'robust':
+                importance, _, _ = self.calculate_actif_robust(mean_attributions)
+            else:
+                raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+            # Store the attributions as a dataframe for processing
+            attributions_df = pd.DataFrame(importance, index=self.selected_features)
+            # Compute the mean absolute attributions for each feature
             mean_abs_attributions = attributions_df.abs().mean()
+            # Sort the features by their mean absolute attributions
             feature_importance = mean_abs_attributions.sort_values(ascending=False)
 
-            # Return the feature importance results
+            # Return the feature importance as a list of dictionaries
             results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
                        feature_importance.items()]
             return results
         else:
             print("No batches processed.")
             return None
+    # def compute_deeplift(self, trained_model, valid_loader, device, baseline_type='zero'):
+    #     accumulated_attributions = torch.zeros(10, len(self.selected_features), device=device)
+    #     total_batches = 0
+    #
+    #     trained_model.eval()  # Put model in evaluation mode
+    #
+    #     for inputs, _ in valid_loader:
+    #         inputs = inputs.to(device)
+    #
+    #         # Define the baseline based on the selected baseline_type
+    #         if baseline_type == 'zero':
+    #             baselines = torch.zeros_like(inputs)  # Zero baseline
+    #         elif baseline_type == 'random':
+    #             baselines = torch.rand_like(inputs)  # Random baseline (uniform between 0 and 1)
+    #         elif baseline_type == 'mean':
+    #             # Compute the mean baseline (per feature) along dimension 0
+    #             mean_baseline = torch.mean(inputs, dim=0)
+    #
+    #             # Expand the mean_baseline to match the shape of the input
+    #             baselines = mean_baseline.expand_as(inputs)
+    #             # baselines = torch.full_like(inputs, torch.mean(inputs, dim=0).)  # Mean baseline (per feature)
+    #         else:
+    #             raise ValueError(f"Unknown baseline type: {baseline_type}")
+    #
+    #         explainer = DeepLift(trained_model)  # Initialize DeepLIFT with the model
+    #         attributions = explainer.attribute(inputs, baselines=baselines)  # Use the chosen baseline
+    #         accumulated_attributions += attributions.sum(dim=0)
+    #         total_batches += 1
+    #
+    #     if total_batches > 0:
+    #         # Calculate the mean attributions across batches
+    #         mean_attributions = (accumulated_attributions / total_batches).detach().cpu().numpy()
+    #
+    #         # Store the attributions as a dataframe
+    #         attributions_df = pd.DataFrame(mean_attributions, columns=self.selected_features)
+    #         mean_abs_attributions = attributions_df.abs().mean()
+    #         feature_importance = mean_abs_attributions.sort_values(ascending=False)
+    #
+    #         # Return the feature importance results
+    #         results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
+    #                    feature_importance.items()]
+    #         return results
+    #     else:
+    #         print("No batches processed.")
+    #         return None
 
     '''
         NISP
     '''
 
-    def compute_nisp(self, trained_model, valid_loader, device, version='v1'):
+    def compute_nisp(self, trained_model, valid_loader, device, version='v1', actif_variant='mean'):
         if version == 'v1':
             return self.compute_nisp_configured(trained_model, valid_loader, accumulation_steps=1,
                                                 use_mixed_precision=False)
@@ -460,7 +671,7 @@ class FeatureRankingsCreator:
         else:
             raise ValueError(f"Unknown baseline type: {version}")
 
-    def compute_nisp_v3(self, trained_model, valid_loader, device, accumulation_steps=1, use_mixed_precision=False):
+    def compute_nisp_v3(self, trained_model, valid_loader, device, accumulation_steps=1, use_mixed_precision=False, actif_variant='mean'):
         activations = []
 
         # Register hook only for the last LSTM layer
@@ -526,7 +737,7 @@ class FeatureRankingsCreator:
             return None
 
     def compute_nisp_configured(self, trained_model, valid_loader, accumulation_steps=1,
-                                use_mixed_precision=False):
+                                use_mixed_precision=False, actif_variant='mean'):
 
         activations = []
 
@@ -608,7 +819,7 @@ class FeatureRankingsCreator:
     Integrated Gradients
     '''
 
-    def compute_intgrad(self, model, valid_loader, version='v1'):
+    def compute_intgrad(self, model, valid_loader, version='v1', actif_variant='mean'):
         if version == 'v1':
             return self.compute_intgrad_configured(model, valid_loader, baseline_type='zeroes')
         elif version == 'v2':
@@ -618,7 +829,7 @@ class FeatureRankingsCreator:
         else:
             raise ValueError(f"Unknown baseline type: {version}")
 
-    def compute_intgrad_configured(self, model, valid_loader, baseline_type='zeroes', steps=100):
+    def compute_intgrad_configured(self, model, valid_loader, baseline_type='zeroes', steps=100, actif_variant='mean'):
         accumulated_attributions = torch.zeros(len(self.selected_features),
                                                device=device)  # No need for (10, 38) anymore
         total_batches = 0
@@ -668,49 +879,11 @@ class FeatureRankingsCreator:
         else:
             raise ValueError("No batches processed. Check your data loader and inputs.")
 
-        # accumulated_attributions = None
-        # total_batches = 0
-        #
-        # model.eval()
-        # for inputs, _ in valid_loader:
-        #     inputs = inputs.to(device)
-        #
-        #     # Calculate attributions using IntegratedGradients
-        #     explainer = IntegratedGradients(lambda input_batch: self.model_wrapper(model, input_batch))
-        #     attributions = explainer.attribute(inputs, baselines=baseline(inputs), n_steps=steps)
-        #
-        #     # Ensure attributions have the correct shape
-        #     batch_size, time_steps, num_features = attributions.shape
-        #     attributions = attributions.sum(dim=1)  # Sum across time steps
-        #
-        #     # Initialize accumulated_attributions if it's None
-        #     if accumulated_attributions is None:
-        #         accumulated_attributions = torch.zeros(batch_size, num_features, device=device)
-        #
-        #     accumulated_attributions += attributions.sum(dim=0)  # Sum across batches
-        #     total_batches += 1
-        #     torch.cuda.empty_cache()
-        #
-        # if total_batches > 0:
-        #     mean_attributions = accumulated_attributions / total_batches
-        #     mean_attributions = mean_attributions.cpu().numpy()
-        #
-        #     # Make sure mean_attributions has the correct size
-        #     if mean_attributions.shape[0] != len(self.selected_features):
-        #         raise ValueError(f"Mismatch: mean_attributions has shape {mean_attributions.shape} "
-        #                          f"but expected {len(self.selected_features)} features.")
-        #
-        #     results = [{'feature': feature, 'attribution': mean_attributions[i]} for i, feature in
-        #                enumerate(self.selected_features)]
-        #     return results
-        # else:
-        #     raise ValueError("No batches processed. Check your data loader and inputs.")
-
     '''
         SHAP Values
     '''
 
-    def compute_shap(self, model, valid_loader, device, version='v1'):
+    def compute_shap(self, model, valid_loader, device, version='v1', actif_variant='mean'):
         # Define the baseline based on the selected baseline_type
         if version == 'v1':
             return self.compute_shap_configured(model, valid_loader, background_size=10, nsamples=100)
@@ -721,7 +894,7 @@ class FeatureRankingsCreator:
         else:
             raise ValueError(f"Unknown baseline type: {version}")
 
-    def compute_shap_configured(self, model, valid_loader, background_size=20, nsamples=100, background_kmeans=False):
+    def compute_shap_configured(self, model, valid_loader, background_size=20, nsamples=100, background_kmeans=False, actif_variant='mean'):
         shap_values_accumulated = []
 
         for input_batch, _ in valid_loader:
@@ -753,16 +926,16 @@ class FeatureRankingsCreator:
         return results
 
     '''
-        ACTIF HL
+    =======================================================================================
+    # Utility Functions
+    =======================================================================================
     '''
-
-
 
     def model_wrapper(self, model, input_tensor):
         output = model(input_tensor, return_intermediates=False)
         return output.squeeze(-1)
 
-    def feature_shuffling_importances(self, trained_model, valid_loader):
+    def feature_shuffling_importances(self, trained_model, valid_loader, actif_variant='mean'):
         cols = self.selected_features
         overall_baseline_mae, y_batch = self.calculateBaseLine(trained_model, valid_loader)
 
@@ -784,10 +957,7 @@ class FeatureRankingsCreator:
             all_batches_feature_k_mean_attributions = np.mean(all_attributions_of_feature_k_as_mae)
             results.append({'feature': cols[k], 'attribution': all_batches_feature_k_mean_attributions})
 
-
-
         return results
-
 
     def calculate_memory_and_execution_time(self, method_func):
         start_time = timeit.default_timer()
@@ -819,7 +989,7 @@ class FeatureRankingsCreator:
         df_timing.to_csv(file_path, mode='a', index=False, header=header)
         logging.info(f"Appended average execution times to '{file_path}'")
 
-    def sort_importances_based_on_attribution(self, df_importances, method=None, raw=raw):
+    def sort_importances_based_on_attribution(self, df_importances, method=None):
         logging.info(f"Sorting importances for method {method}")
         mean_importances = df_importances.groupby('feature')['attribution'].mean().reset_index()
         mean_importances_sorted = mean_importances.sort_values(by='attribution', ascending=False)
@@ -845,7 +1015,6 @@ class FeatureRankingsCreator:
         mean_importances_sorted.to_csv(filename, index=False)
         logging.info(f"Saved importances for {method} in {filename}")
 
-    import torch
 
     def calculateBaseLine(self, trained_model, valid_loader):
         """
