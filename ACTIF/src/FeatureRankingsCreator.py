@@ -41,18 +41,19 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
-            'deeplift_zero',
-            'deeplift_random',
-            'deeplift_mean',
-            'nisp_v1',
-            'nisp_v2',
-            'nisp_v3',
-            'captum_intGrad_v1',
-            'captum_intGrad_v2',
-            'captum_intGrad_v3',
-            'shap_values_v1',
-            'shap_values_v2',
-            'shap_values_v3',
+            # 'deeplift_zero',
+            # 'deeplift_random',
+            # 'deeplift_mean',    # ok
+            # 'nisp_v1',      # ok
+            # 'nisp_v2',      # ok
+            # 'nisp_v3',      # ok
+            # 'captum_intGrad_v1', # zu wenig speicher
+            # 'captum_intGrad_v2', # zu wenig speicher
+            # 'captum_intGrad_v3', # zu wenig speicher
+            # 'shap_values_v1', #fehler
+            # 'shap_values_v2', #fehler
+            # 'shap_values_v3', #fehler
+            'shuffle',
             'actif_mean',
             'actif_mean_stddev',
             'actif_weighted_mean',
@@ -60,7 +61,6 @@ class FeatureRankingsCreator:
             'actif_robust',
             'actif_robust_penHigh',
             'ablation',
-            'shuffle',
             'actif_lin',
         ]
 
@@ -127,8 +127,8 @@ class FeatureRankingsCreator:
             'shuffle': lambda: self.feature_shuffling_importances(trained_model, valid_loader, userFolder),
             'ablation': lambda: self.ablation(trained_model, valid_loader),
             'captum_intGrad_v1': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1'),
-            'captum_intGrad_v2': lambda: self.captum_intGrad(trained_model, valid_loader, version='v2'),
-            'captum_intGrad_v3': lambda: self.captum_intGrad(trained_model, valid_loader, version='v3'),
+            'captum_intGrad_v2': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2'),
+            'captum_intGrad_v3': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3'),
             'shap_values_v1': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1'),
             'shap_values_v2': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2'),
             'shap_values_v3': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3'),
@@ -391,7 +391,6 @@ class FeatureRankingsCreator:
     '''
         Deep Lift
     '''
-
     def compute_deeplift(self, trained_model, valid_loader, device, baseline_type='zero'):
         accumulated_attributions = torch.zeros(10, len(self.selected_features), device=device)
         total_batches = 0
@@ -407,7 +406,12 @@ class FeatureRankingsCreator:
             elif baseline_type == 'random':
                 baselines = torch.rand_like(inputs)  # Random baseline (uniform between 0 and 1)
             elif baseline_type == 'mean':
-                baselines = torch.full_like(inputs, torch.mean(inputs, dim=0))  # Mean baseline (per feature)
+                # Compute the mean baseline (per feature) along dimension 0
+                mean_baseline = torch.mean(inputs, dim=0)
+
+                # Expand the mean_baseline to match the shape of the input
+                baselines = mean_baseline.expand_as(inputs)
+                # baselines = torch.full_like(inputs, torch.mean(inputs, dim=0).)  # Mean baseline (per feature)
             else:
                 raise ValueError(f"Unknown baseline type: {baseline_type}")
 
@@ -449,7 +453,7 @@ class FeatureRankingsCreator:
             return self.compute_nisp_v3(trained_model, valid_loader, device, accumulation_steps=1,
                                         use_mixed_precision=False)
         else:
-            raise ValueError(f"Unknown baseline type: {baseline_type}")
+            raise ValueError(f"Unknown baseline type: {version}")
 
     def compute_nisp_v3(self, trained_model, valid_loader, device, accumulation_steps=1, use_mixed_precision=False):
         activations = []
@@ -603,11 +607,11 @@ class FeatureRankingsCreator:
         if version == 'v1':
             return self.compute_intgrad_configured(model, valid_loader, baseline=torch.zeros_like, steps=100)
         elif version == 'v2':
-            return self.compute_intgrad_configured(model, valid_loader, baseline=random_baseline, steps=200)
+            return self.compute_intgrad_configured(model, valid_loader, baseline='random', steps=200)
         elif version == 'v3':
-            return self.compute_intgrad_configured(model, valid_loader, baseline=mean_baseline, steps=50)
+            return self.compute_intgrad_configured(model, valid_loader, baseline='mean', steps=50)
         else:
-            raise ValueError(f"Unknown baseline type: {baseline_type}")
+            raise ValueError(f"Unknown baseline type: {version}")
 
     def compute_intgrad_configured(self, model, valid_loader, baseline, steps=100):
 
@@ -617,10 +621,13 @@ class FeatureRankingsCreator:
         model.eval()
         for inputs, _ in valid_loader:
             inputs = inputs.to(device)
-            explainer = IntegratedGradients(model)
+            # explainer = IntegratedGradients(model)
 
             # Calculate attributions
-            attributions = explainer.attribute(inputs, baselines=baseline(inputs), n_steps=steps)
+            # attributions = explainer.attribute(inputs, baselines=baseline(inputs), n_steps=steps)
+            explainer = IntegratedGradients(lambda input_batch: self.model_wrapper(model, input_batch))
+            attributions = explainer.attribute(inputs)
+
             accumulated_attributions += attributions.sum(dim=0)
             total_batches += 1
 
@@ -647,7 +654,7 @@ class FeatureRankingsCreator:
         elif version == 'v3':
             return self.compute_shap_configured(model, valid_loader, background_kmeans=True, nsamples=500)
         else:
-            raise ValueError(f"Unknown baseline type: {baseline_type}")
+            raise ValueError(f"Unknown baseline type: {version}")
 
     def compute_shap_configured(self, model, valid_loader, background_size=20, nsamples=100, background_kmeans=False):
         shap_values_accumulated = []
@@ -691,48 +698,11 @@ class FeatureRankingsCreator:
         output = model(input_tensor, return_intermediates=False)
         return output.squeeze(-1)
 
-    #
-    # def compute_deeplift(self, trained_model, valid_loader, device):
-    #
-    #
-    #     if len(valid_loader) == 0:
-    #         print("Validation loader is empty. Skipping subject.")
-    #         return None  # Or log the subject and continue
-    #
-    #     accumulated_attributions = torch.zeros(10, len(self.selected_features), device=device)
-    #     total_batches = 0
-    #
-    #     trained_model.eval()  # Put model in evaluation mode
-    #
-    #     for inputs, _ in valid_loader:
-    #         inputs = inputs.to(device)
-    #         explainer = DeepLift(trained_model)  # Initialize DeepLIFT with the model
-    #         attributions = explainer.attribute(inputs, baselines=torch.zeros_like(inputs))  # Use a zero baseline
-    #         accumulated_attributions += attributions.sum(dim=0)
-    #         total_batches += 1
-    #
-    #     if total_batches > 0:
-    #         # Use detach() before calling .cpu() to avoid the gradient-tracking error
-    #         mean_attributions = (accumulated_attributions / total_batches).detach().cpu().numpy()
-    #
-    #         attributions_df = pd.DataFrame(mean_attributions, columns=self.selected_features)
-    #         mean_abs_attributions = attributions_df.abs().mean()
-    #         feature_importance = mean_abs_attributions.sort_values(ascending=False)
-    #
-    #         results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
-    #                    feature_importance.items()]
-    #         print("Finished DEEPLift")
-    #         return results
-    #     else:
-    #         print("No batches processed for this subject.")
-    #         return None  # Skip this subject and return a meaningful placeholder
-
     def feature_shuffling_importances(self, trained_model, valid_loader, userfolder):
         cols = self.selected_features
-        overall_baseline_mae, intermediate_activations, y_batch = self.currentDataset.calculateBaseLine(trained_model,
-                                                                                                        valid_loader)
+        overall_baseline_mae, y_batch = self.calculateBaseLine(trained_model, valid_loader)
 
-        self.de.visualize_activations(intermediate_activations, y_batch, userfolder=userfolder, name="baseline")
+        # self.de.visualize_activations(intermediate_activations, y_batch, userfolder=userfolder, name="baseline")
         results = [{'feature': 'BASELINE', 'attribution': overall_baseline_mae}]
         trained_model.eval()
         for k in tqdm(range(len(cols)), desc="Computing feature importance"):
@@ -822,3 +792,37 @@ class FeatureRankingsCreator:
         filename = f"{self.outputFolder}/{method}.csv"
         mean_importances_sorted.to_csv(filename, index=False)
         logging.info(f"Saved importances for {method} in {filename}")
+
+    import torch
+
+    def calculateBaseLine(self, trained_model, valid_loader):
+        """
+        Calculate the baseline MAE for the model on the validation dataset.
+        This is done without shuffling any features, serving as a reference point for feature importance.
+        """
+        trained_model.eval()  # Set the model to evaluation mode
+        all_baseline_maes = []  # To store MAE for each batch
+        all_y_batches = []  # To store all true labels for reference
+
+        # Iterate over the validation data loader
+        for X_batch, y_batch in valid_loader:
+            X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+
+            # Make predictions without shuffling
+            with torch.no_grad():
+                oof_preds = trained_model(X_batch, return_intermediates=False).squeeze()
+
+            # Calculate MAE for the current batch
+            batch_mae = torch.mean(torch.abs(oof_preds - y_batch)).item()
+            all_baseline_maes.append(batch_mae)
+
+            # Store the true labels for reference (optional, depending on your use case)
+            all_y_batches.append(y_batch.cpu().numpy())
+
+        # Calculate the overall mean baseline MAE across all batches
+        overall_baseline_mae = np.mean(all_baseline_maes)
+
+        # Combine all true labels if you need them later for any purpose
+        all_y_batches = np.concatenate(all_y_batches, axis=0)
+
+        return overall_baseline_mae, all_y_batches
