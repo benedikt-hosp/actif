@@ -993,12 +993,10 @@ class FeatureRankingsCreator:
                 all_attributions_of_feature_k_as_mae.append(attribution_as_mae)
                 all_attributions[k, i] = attribution_as_mae
 
-            # Store the average attribution for feature k
-            results.append({'feature': cols[k], 'attribution': np.mean(all_attributions_of_feature_k_as_mae)})
-
-        # Now apply the selected ACTIF variant on the shuffled attributions
+        # Compute the mean of the attributions across all batches
         mean_attributions = np.mean(all_attributions, axis=1)
 
+        # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
         if actif_variant == 'mean':
             importance, _, _ = self.calculate_actif_mean(mean_attributions)
         elif actif_variant == 'meanstddev':
@@ -1009,6 +1007,14 @@ class FeatureRankingsCreator:
             importance, _, _ = self.calculate_actif_robust(mean_attributions)
         else:
             raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Ensure that the importance variable is a list or array with the same length as the number of features
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)
+
+        if importance.shape[0] != len(cols):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(cols)} features are expected.")
 
         # Prepare the results with the aggregated importance
         results = [{'feature': cols[i], 'attribution': importance[i]} for i in range(len(cols))]
