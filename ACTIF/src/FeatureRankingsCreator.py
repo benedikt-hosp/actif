@@ -48,6 +48,11 @@ class FeatureRankingsCreator:
             'deeplift_random_INV',
             'deeplift_random_PEN',
 
+            'deeplift_mean_MEAN',  # ok
+            'deeplift_mean_MEANSTD',
+            'deeplift_mean_INV',
+            'deeplift_mean_PEN',
+
             'nisp_v1_MEAN',
             'nisp_v1_MEANSTD',
             'nisp_v1_INV',
