@@ -43,21 +43,6 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
-            'shuffle_MEAN',
-            'shuffleMEANSTD',
-            'shuffle_INV',
-            'shuffle_PEN',
-
-            'ablation_MEAN',
-            'ablationMEANSTD',
-            'ablation_INV',
-            'ablation_PEN',
-
-
-            'deeplift_zero_MEAN',
-            'deeplift_zero_MEANSTD',
-            'deeplift_zero_INV',
-            'deeplift_zero_PEN',
             'deeplift_random_MEAN',
             'deeplift_random_MEANSTD',
             'deeplift_random_INV',
@@ -108,20 +93,25 @@ class FeatureRankingsCreator:
             'shap_values_v3_INV',
             'shap_values_v3_PEN',
 
-            'shuffle_MEAN',
-            'shuffleMEANSTD',
-            'shuffle_INV',
-            'shuffle_PEN',
-
-            'ablation_MEAN',
-            'ablationMEANSTD',
-            'ablation_INV',
-            'ablation_PEN',
-
             'actif_mean',
             'actif_mean_stddev',
             'actif_inverted_weighted_mean',
             'actif_robust',
+
+            'shuffle_MEAN',       # ok
+            'shuffle_MEANSTD',
+            'shuffle_INV',
+            'shuffle_PEN',
+
+            'ablation_MEAN',      # ok
+            'ablation_MEANSTD',
+            'ablation_INV',
+            'ablation_PEN',
+
+            'deeplift_zero_MEAN',   # ok
+            'deeplift_zero_MEANSTD',
+            'deeplift_zero_INV',
+            'deeplift_zero_PEN',
 
         ]
 
@@ -155,11 +145,11 @@ class FeatureRankingsCreator:
             method_func = self.get_method_function(method, self.currentModel, valid_loader)
             if method_func:
                 execution_time, mem_usage, subject_importances = self.calculate_memory_and_execution_time(method_func)
-                if subject_importances:
+                # if subject_importances:
+                if subject_importances is not None and len(subject_importances) > 0:
                     all_execution_times.append(execution_time)
                     all_memory_usages.append(max(mem_usage))
                     aggregated_importances.extend(subject_importances)
-                trained_model = None  # Clear model
 
         self.save_timing_data(method, all_execution_times, all_memory_usages)
         df_importances = pd.DataFrame(aggregated_importances)
@@ -191,76 +181,76 @@ class FeatureRankingsCreator:
             'shuffle_MEAN': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='mean'),
             'shuffle_MEANSTD': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='meanstd'),
             'shuffle_INV': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='inv'),
-            'shuffle_PEN': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='pen'),
+            'shuffle_PEN': lambda: self.feature_shuffling_importances(trained_model, valid_loader, actif_variant='robust'),
 
             # Ablation Methods
             'ablation_MEAN': lambda: self.ablation(trained_model, valid_loader, actif_variant='mean'),
             'ablation_MEANSTD': lambda: self.ablation(trained_model, valid_loader, actif_variant='meanstd'),
             'ablation_INV': lambda: self.ablation(trained_model, valid_loader, actif_variant='inv'),
-            'ablation_PEN': lambda: self.ablation(trained_model, valid_loader, actif_variant='pen'),
+            'ablation_PEN': lambda: self.ablation(trained_model, valid_loader, actif_variant='robust'),
 
             # Captum Integrated Gradients Methods (v1, v2, v3)
             'captum_intGrad_v1_MEAN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='mean'),
-            'captum_intGrad_v1_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='meanstddev'),
-            'captum_intGrad_v1_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='inverted_weighted_mean'),
+            'captum_intGrad_v1_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='meanstd'),
+            'captum_intGrad_v1_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='inv'),
             'captum_intGrad_v1_PEN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v1', actif_variant='robust'),
 
             'captum_intGrad_v2_MEAN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='mean'),
-            'captum_intGrad_v2_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='meanstddev'),
-            'captum_intGrad_v2_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='inverted_weighted_mean'),
+            'captum_intGrad_v2_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='meanstd'),
+            'captum_intGrad_v2_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='inv'),
             'captum_intGrad_v2_PEN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v2', actif_variant='robust'),
 
             'captum_intGrad_v3_MEAN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='mean'),
-            'captum_intGrad_v3_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='meanstddev'),
-            'captum_intGrad_v3_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='inverted_weighted_mean'),
+            'captum_intGrad_v3_MEANSTD': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='meanstd'),
+            'captum_intGrad_v3_INV': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='inv'),
             'captum_intGrad_v3_PEN': lambda: self.compute_intgrad(trained_model, valid_loader, version='v3', actif_variant='robust'),
 
             # SHAP Values Methods (v1, v2, v3)
             'shap_values_v1_MEAN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='mean'),
-            'shap_values_v1_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='meanstddev'),
-            'shap_values_v1_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='inverted_weighted_mean'),
+            'shap_values_v1_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='meanstd'),
+            'shap_values_v1_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='inv'),
             'shap_values_v1_PEN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v1', actif_variant='robust'),
 
             'shap_values_v2_MEAN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='mean'),
-            'shap_values_v2_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='meanstddev'),
-            'shap_values_v2_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='inverted_weighted_mean'),
+            'shap_values_v2_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='meanstd'),
+            'shap_values_v2_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='inv'),
             'shap_values_v2_PEN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v2', actif_variant='robust'),
 
             'shap_values_v3_MEAN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='mean'),
-            'shap_values_v3_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='meanstddev'),
-            'shap_values_v3_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='inverted_weighted_mean'),
+            'shap_values_v3_MEANSTD': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='meanstd'),
+            'shap_values_v3_INV': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='inv'),
             'shap_values_v3_PEN': lambda: self.compute_shap(trained_model, valid_loader, device, version='v3', actif_variant='robust'),
 
             # DeepLIFT Methods with Zero, Random, and Mean Baseline Types
             'deeplift_zero_MEAN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='mean'),
-            'deeplift_zero_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='meanstddev'),
-            'deeplift_zero_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='inverted_weighted_mean'),
+            'deeplift_zero_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='meanstd'),
+            'deeplift_zero_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='inv'),
             'deeplift_zero_PEN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='zero', actif_variant='robust'),
 
             'deeplift_random_MEAN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='mean'),
-            'deeplift_random_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='meanstddev'),
-            'deeplift_random_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='inverted_weighted_mean'),
+            'deeplift_random_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='meanstd'),
+            'deeplift_random_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='inv'),
             'deeplift_random_PEN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='random', actif_variant='robust'),
 
             'deeplift_mean_MEAN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='mean'),
-            'deeplift_mean_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='meanstddev'),
-            'deeplift_mean_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='inverted_weighted_mean'),
+            'deeplift_mean_MEANSTD': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='meanstd'),
+            'deeplift_mean_INV': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='inv'),
             'deeplift_mean_PEN': lambda: self.compute_deeplift(trained_model, valid_loader, device, baseline_type='mean', actif_variant='robust'),
 
             # NISP Methods (v1, v2, v3)
             'nisp_v1_MEAN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='mean'),
-            'nisp_v1_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='meanstddev'),
-            'nisp_v1_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='inverted_weighted_mean'),
+            'nisp_v1_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='meanstd'),
+            'nisp_v1_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='inv'),
             'nisp_v1_PEN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v1', actif_variant='robust'),
 
             'nisp_v2_MEAN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='mean'),
-            'nisp_v2_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='meanstddev'),
-            'nisp_v2_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='inverted_weighted_mean'),
+            'nisp_v2_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='meanstd'),
+            'nisp_v2_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='inv'),
             'nisp_v2_PEN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v2', actif_variant='robust'),
 
             'nisp_v3_MEAN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='mean'),
-            'nisp_v3_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='meanstddev'),
-            'nisp_v3_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='inverted_weighted_mean'),
+            'nisp_v3_MEANSTD': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='meanstd'),
+            'nisp_v3_INV': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='inv'),
             'nisp_v3_PEN': lambda: self.compute_nisp(trained_model, valid_loader, device, version='v3', actif_variant='robust'),
         }
 
@@ -271,7 +261,6 @@ class FeatureRankingsCreator:
     # ACTIF Variants
     =======================================================================================
     '''
-
     def actif_mean(self, valid_loader):
         return self.actif_calculation(self.calculate_actif_mean, valid_loader, False)
 
@@ -287,27 +276,8 @@ class FeatureRankingsCreator:
     def actif_robust(self, valid_loader):
         return self.actif_calculation(self.calculate_actif_robust, valid_loader, False)
 
-    # def actif_robust_penHigh(self,  valid_loader):
-    #     return self.actif_calculation(self.calculate_actif_robust_penHigh, valid_loader, False)
-
     def actif_calculation(self, calculation_function, valid_loader, use_layers):
         all_importances = []
-
-        # if use_layers:
-        #     activation_file_path = os.path.join(user_folder, 'intermediates_activations.npy')
-        #
-        #     if os.path.exists(activation_file_path):
-        #         activations_data = np.load(activation_file_path, allow_pickle=True).item()
-        #         layer_activation = list(activations_data.values())[1]
-        #
-        #         if isinstance(layer_activation, np.ndarray) and layer_activation.size > 0:
-        #             if layer_activation.ndim > 2:
-        #                 layer_activation = np.mean(layer_activation, axis=1)
-        #
-        #             importance, _, _ = calculation_function(layer_activation)
-        #             all_importances.append(importance)
-        #
-        # else:
         total_sum = None
         total_count = 0
 
@@ -318,9 +288,6 @@ class FeatureRankingsCreator:
                 inputs, _ = batch  # Assuming batch returns (inputs, labels)
                 inputs = inputs.to(device)  # Move inputs to the appropriate device
 
-                # inputs shape: [batch_size, time_steps, num_features]
-                # batch_size, time_steps, num_features = inputs.shape
-
                 # Convert inputs to numpy if needed, and compute mean activations over time
                 inputs_np = inputs.cpu().numpy()  # Convert inputs to numpy array
 
@@ -328,7 +295,7 @@ class FeatureRankingsCreator:
                 mean_activation = np.mean(np.abs(inputs_np), axis=1)  # Mean over time steps
 
                 # Call the calculation function (e.g., actif_mean) with the mean activations
-                importance, _, _ = calculation_function(mean_activation)
+                importance = calculation_function(mean_activation)
                 all_importances.append(importance)
 
                 # Clear GPU cache after each batch to prevent memory buildup
@@ -363,7 +330,7 @@ class FeatureRankingsCreator:
            """
         activation_abs = np.abs(activation)  # Take the absolute value of activations
         mean_activation = np.mean(activation_abs, axis=0)  # Compute mean across samples
-        return mean_activation, mean_activation, None  # Return mean activation as the importance
+        return mean_activation  # Return mean activation as the importance
 
     def calculate_actif_meanstddev(self, activation):
         """
@@ -381,7 +348,7 @@ class FeatureRankingsCreator:
         mean_activation = np.mean(activation_abs, axis=0)  # Compute mean across samples
         std_activation = np.std(activation_abs, axis=0)  # Compute standard deviation across samples
         weighted_importance = mean_activation * std_activation  # Multiply mean by stddev to get importance
-        return weighted_importance, mean_activation, std_activation
+        return weighted_importance
 
     # def calculate_actif_weighted_mean(self, activation):
     #     """
@@ -428,7 +395,7 @@ class FeatureRankingsCreator:
 
         # Calculate importance as a combination of mean and inverse stddev
         adjusted_importance = (normalized_mean + inverse_normalized_std) / 2
-        return adjusted_importance, mean_activation, std_activation
+        return adjusted_importance
 
     def calculate_actif_robust(self, activations, epsilon=0.01, min_std_threshold=0.01):
         """
@@ -452,7 +419,7 @@ class FeatureRankingsCreator:
         transformed_std = np.exp(-std_activation / min_std_threshold)  # Exponentially penalize high stddev
         adjusted_importance = normalized_mean * (1 - transformed_std)
 
-        return adjusted_importance, mean_activation, std_activation
+        return adjusted_importance
 
     # def calculate_actif_robust_penHigh(self, activations, epsilon=0.01, min_std_threshold=0.01):
     #     activation_abs = np.abs(activations)
@@ -476,58 +443,123 @@ class FeatureRankingsCreator:
         Ablation
     '''
 
-    def ablation(self, model, valid_loader, actif='mean'):
-        """
-        Perform feature ablation and aggregate the attributions using the specified ACTIF variant.
+    # def ablation(self, model, valid_loader, actif_variant='mean'):
+    #     """
+    #     Perform feature ablation and aggregate the attributions using the specified ACTIF variant.
+    #
+    #     Args:
+    #         model: The trained PyTorch model.
+    #         valid_loader: DataLoader for validation data (with sequences).
+    #         actif: The ACTIF variant to use for aggregation ('mean', 'meanstddev', 'inv', 'pen').
+    #
+    #     Returns:
+    #         List of feature importance based on ablation and the selected ACTIF variant.
+    #     """
+    #     model.eval()
+    #     device = next(model.parameters()).device  # Ensure we are using the right device
+    #
+    #     # Initialize feature ablation from Captum
+    #     feature_ablation = FeatureAblation(lambda input_batch: self.model_wrapper(model, input_batch))
+    #
+    #     # Initialize tensor to accumulate attributions
+    #     aggregated_attributions = torch.zeros(len(self.selected_features)).to(device)
+    #     total_batches = 0
+    #
+    #     # Perform feature ablation for each batch in the validation loader
+    #     for input_batch, _ in valid_loader:
+    #         input_batch = input_batch.to(device)
+    #
+    #         # Compute attributions using feature ablation
+    #         attributions = feature_ablation.attribute(input_batch)
+    #
+    #         attributions_mean = attributions.mean(dim=1)  # Now attributions_mean should have shape [batch_size, num_features]
+    #
+    #         # Sum the attributions across the batch
+    #         aggregated_attributions += attributions_mean # .sum(dim=0)  # This will sum over the batch dimension
+    #         total_batches += 1
+    #
+    #     # Compute the mean attributions across all instances
+    #     # mean_attributions = (aggregated_attributions / instance_count).cpu().numpy()
+    #
+    #     # Apply ACTIF variant for aggregation
+    #     if actif_variant == 'mean':
+    #         importance = self.calculate_actif_mean(aggregated_attributions.detach().cpu().numpy())
+    #     elif actif_variant == 'meanstddev':
+    #         importance = self.calculate_actif_meanstddev(aggregated_attributions.detach().cpu().numpy())
+    #     elif actif_variant == 'inv':
+    #         importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions.detach().cpu().numpy())
+    #     elif actif_variant == 'pen':
+    #         importance = self.calculate_actif_robust(aggregated_attributions.detach().cpu().numpy())
+    #     else:
+    #         raise ValueError(f"Unknown ACTIF variant: {actif}")
+    #
+    #     # Prepare the results as a list of dictionaries
+    #     results = [{'feature': feature, 'attribution': importance[i]} for i, feature in
+    #                enumerate(self.selected_features)]
+    #
+    #     return results
 
-        Args:
-            model: The trained PyTorch model.
-            valid_loader: DataLoader for validation data (with sequences).
-            actif: The ACTIF variant to use for aggregation ('mean', 'meanstddev', 'inv', 'pen').
-
-        Returns:
-            List of feature importance based on ablation and the selected ACTIF variant.
-        """
+    def ablation(self, model, valid_loader, actif_variant='mean'):
         model.eval()
-        device = next(model.parameters()).device  # Ensure we are using the right device
 
-        # Initialize feature ablation from Captum
+        total_samples = len(valid_loader.dataset)  # Total number of samples
+        aggregated_attributions = torch.zeros(total_samples, len(self.selected_features), device=device)
+
+        start_idx = 0  # To keep track of where to insert the current batch's results
+
+        # Perform ablation
         feature_ablation = FeatureAblation(lambda input_batch: self.model_wrapper(model, input_batch))
 
-        # Initialize tensor to accumulate attributions
-        aggregated_attributions = torch.zeros(len(self.selected_features)).to(device)
-        instance_count = 0
-
-        # Perform feature ablation for each batch in the validation loader
         for input_batch, _ in valid_loader:
             input_batch = input_batch.to(device)
+            batch_size = input_batch.size(0)
 
-            # Compute attributions using feature ablation
-            attribution = feature_ablation.attribute(input_batch)
+            # Compute feature attributions for the current batch
+            attributions = feature_ablation.attribute(input_batch)
 
-            # Sum the attributions across the batch
-            aggregated_attributions += attribution.sum(dim=0)
-            instance_count += input_batch.size(0)
+            # Aggregate the attributions over the samples in the current batch
+            attributions_mean = attributions.mean(dim=1)  # Aggregating over time dimension if necessary
 
-        # Compute the mean attributions across all instances
-        mean_attributions = (aggregated_attributions / instance_count).cpu().numpy()
+            # Insert the results into the pre-allocated tensor
+            aggregated_attributions[start_idx:start_idx + batch_size] = attributions_mean
+            start_idx += batch_size
 
-        # Apply ACTIF variant for aggregation
-        if actif == 'mean':
-            importance, _, _ = self.calculate_actif_mean(mean_attributions)
-        elif actif == 'meanstddev':
-            importance, _, _ = self.calculate_actif_meanstddev(mean_attributions)
-        elif actif == 'inv':
-            importance, _, _ = self.calculate_actif_inverted_weighted_mean(mean_attributions)
-        elif actif == 'pen':
-            importance, _, _ = self.calculate_actif_robust(mean_attributions)
+        # Average attributions over all samples
+        if start_idx > 0:
+            # aggregated_attributions /= total_instances
+            # aggregated_attributions = aggregated_attributions.permute(1, 0)  # Shape will now be [batch_size, features, time_steps]
+
+            # # Now, to match ACTIF format, we expand these attributions across the time steps
+            # expanded_attributions = aggregated_attributions.repeat(input_batch.size(1), 1)  # Repeat for time steps
+
+            # Call ACTIF variant (e.g., actif_mean) to aggregate the results
+            if actif_variant == 'mean':
+                importance = self.calculate_actif_mean(aggregated_attributions.cpu().numpy())
+            elif actif_variant == 'meanstd':
+                importance = self.calculate_actif_meanstddev(aggregated_attributions.cpu().numpy())
+            elif actif_variant == 'inv':
+                importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions.cpu().numpy())
+            elif actif_variant == 'robust':
+                importance = self.calculate_actif_robust(aggregated_attributions.cpu().numpy())
+            else:
+                raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
         else:
-            raise ValueError(f"Unknown ACTIF variant: {actif}")
+            logging.error("No data processed in the validation loader for ablation.")
+            return None
 
-        # Prepare the results as a list of dictionaries
-        results = [{'feature': feature, 'attribution': importance[i]} for i, feature in
-                   enumerate(self.selected_features)]
+        # Ensure that the 'importance' variable is a list or array with the same length as the number of features (cols)
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)  # Convert to numpy array if it isn't one already
 
+        if importance.shape[0] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+            )
+
+        # Prepare the results with the aggregated importance
+        results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+                   range(len(self.selected_features))]
         return results
 
     # def ablation(self, model, valid_loader):
@@ -556,21 +588,11 @@ class FeatureRankingsCreator:
 
     def compute_deeplift(self, trained_model, valid_loader, device, baseline_type='zero', actif_variant='mean'):
         """
-        Compute the feature attributions using DeepLIFT and aggregate the attributions using the selected ACTIF variant.
-
-        Args:
-            trained_model: The trained PyTorch model.
-            valid_loader: DataLoader for validation data (with sequences).
-            device: Device (CPU or GPU) to perform computations.
-            baseline_type: Type of baseline to use for DeepLIFT ('zero', 'random', 'mean').
-            actif_variant: The ACTIF variant to use for aggregation ('mean', 'meanstddev', 'inverted_weighted_mean', 'robust').
-
-        Returns:
-            List of feature importance based on DeepLIFT and the selected ACTIF variant.
+        Computes feature importance using DeepLIFT and aggregates it based on the selected ACTIF variant.
         """
-        # Initialize a tensor to accumulate the attributions
-        accumulated_attributions = torch.zeros(len(self.selected_features), device=device)
-        total_batches = 0
+        # List to accumulate attributions
+        all_attributions = []
+        total_instances = 0
 
         trained_model.eval()  # Put the model into evaluation mode
 
@@ -595,23 +617,32 @@ class FeatureRankingsCreator:
             # Compute attributions using DeepLIFT with the given baseline
             attributions = explainer.attribute(inputs, baselines=baselines)
 
-            # Sum the attributions across the batch (keeping the feature axis)
-            accumulated_attributions += attributions.sum(dim=0)
-            total_batches += 1
+            # Sum across the time steps (dim=1), keeping the batch dimension intact
+            attributions_mean = attributions.sum(
+                dim=1)  # Sum over the time steps, results in shape [batch_size, num_features]
 
-        if total_batches > 0:
-            # Calculate the mean attributions across all batches
-            mean_attributions = (accumulated_attributions / total_batches).detach().cpu().numpy()
+            # After processing the batch, free GPU memory
+            del inputs
+            del attributions
+            torch.cuda.empty_cache()
+
+            # Append the batch attributions
+            all_attributions.append(attributions_mean.detach().cpu().numpy())
+            total_instances += attributions_mean.size(0)
+
+        # Concatenate all attributions (to handle batches)
+        if total_instances > 0:
+            aggregated_attributions = np.concatenate(all_attributions, axis=0)  # Shape: [num_samples, num_features]
 
             # Now, apply the selected ACTIF variant for feature importance aggregation
             if actif_variant == 'mean':
-                importance, _, _ = self.calculate_actif_mean(mean_attributions)
-            elif actif_variant == 'meanstddev':
-                importance, _, _ = self.calculate_actif_meanstddev(mean_attributions)
-            elif actif_variant == 'inverted_weighted_mean':
-                importance, _, _ = self.calculate_actif_inverted_weighted_mean(mean_attributions)
+                importance = self.calculate_actif_mean(aggregated_attributions)
+            elif actif_variant == 'meanstd':
+                importance = self.calculate_actif_meanstddev(aggregated_attributions)
+            elif actif_variant == 'inv':
+                importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions)
             elif actif_variant == 'robust':
-                importance, _, _ = self.calculate_actif_robust(mean_attributions)
+                importance = self.calculate_actif_robust(aggregated_attributions)
             else:
                 raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
 
@@ -993,18 +1024,17 @@ class FeatureRankingsCreator:
                 all_attributions_of_feature_k_as_mae.append(attribution_as_mae)
                 all_attributions[k, i] = attribution_as_mae
 
-        # Compute the mean of the attributions across all batches
-        mean_attributions = np.mean(all_attributions, axis=1)
+        all_attributions = all_attributions.permute(1, 0)  # Shape will now be [batch_size, features, time_steps]
 
         # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
         if actif_variant == 'mean':
-            importance, _, _ = self.calculate_actif_mean(mean_attributions)
-        elif actif_variant == 'meanstddev':
-            importance, _, _ = self.calculate_actif_meanstddev(mean_attributions)
+            importance = self.calculate_actif_mean(all_attributions)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(all_attributions)
         elif actif_variant == 'inv':
-            importance, _, _ = self.calculate_actif_inverted_weighted_mean(mean_attributions)
+            importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
         elif actif_variant == 'pen':
-            importance, _, _ = self.calculate_actif_robust(mean_attributions)
+            importance = self.calculate_actif_robust(all_attributions)
         else:
             raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
 
@@ -1013,13 +1043,13 @@ class FeatureRankingsCreator:
             importance = np.array(importance)
 
         if importance.shape[0] != len(cols):
-            raise ValueError(
-                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(cols)} features are expected.")
+            raise ValueError(f"ACTIF method returned {importance.shape[0]} importance scores, but {len(cols)} features are expected.")
 
         # Prepare the results with the aggregated importance
         results = [{'feature': cols[i], 'attribution': importance[i]} for i in range(len(cols))]
 
         return results
+
 
     # def feature_shuffling_importances(self, trained_model, valid_loader, actif_variant='mean'):
     #     cols = self.selected_features
@@ -1086,26 +1116,48 @@ class FeatureRankingsCreator:
         df_timing.to_csv(file_path, mode='a', index=False, header=header)
         logging.info(f"Appended average execution times to '{file_path}'")
 
-    def sort_importances_based_on_attribution(self, df_importances, method=None):
-        logging.info(f"Sorting importances for method {method}")
-        mean_importances = df_importances.groupby('feature')['attribution'].mean().reset_index()
-        mean_importances_sorted = mean_importances.sort_values(by='attribution', ascending=False)
+    def sort_importances_based_on_attribution(self, aggregated_importances, method):
+        # Create DataFrame from aggregated importances
+        # if isinstance(aggregated_importances, list):
+        df_importances = pd.DataFrame(aggregated_importances)
 
-        plt.figure(figsize=(10, 15))
-        bars = plt.barh(mean_importances_sorted['feature'], mean_importances_sorted['attribution'], color='skyblue')
-        for bar in bars:
-            plt.text(bar.get_width(), bar.get_y() + bar.get_height() / 2,
-                     f"{bar.get_width():.2f}", va='center', rotation=90)
-        plt.xlabel('attribution')
-        plt.title('Feature Importance Across All Subjects')
-        plt.tight_layout()
-        plt.savefig(f"{self.outputFolder}/{method}_importances.png", format='png', dpi=300, bbox_inches='tight')
-        plt.close()
+        # Check if DataFrame is empty or doesn't have required columns
+        if df_importances.empty:
+            raise ValueError(f"No feature importances found for method {method}")
+        if 'feature' not in df_importances.columns or 'attribution' not in df_importances.columns:
+            raise KeyError("The DataFrame does not contain the required 'feature' and 'attribution' columns.")
 
+        # Group by 'feature' and compute the mean of the attributions
         mean_importances = df_importances.groupby('feature')['attribution'].mean().reset_index()
-        mean_importances_sorted = mean_importances.sort_values(by='attribution', ascending=False)
-        self.feature_importance_results[method] = mean_importances_sorted['feature'].tolist()  # Store sorted features
-        self.save_importances_in_file(mean_importances_sorted, method)
+
+        # Sort the importances by attribution values
+        sorted_importances = mean_importances.sort_values(by='attribution', ascending=False)
+        self.save_importances_in_file(mean_importances_sorted=sorted_importances, method=method)
+        # Store the sorted importances
+        self.feature_importance_results[method] = sorted_importances
+        return sorted_importances
+
+    # def sort_importances_based_on_attribution(self, df_importances, method=None):
+    #     print(df_importances.head())
+    #     logging.info(f"Sorting importances for method {method}")
+    #     mean_importances = df_importances.groupby('feature')['attribution'].mean().reset_index()
+    #     mean_importances_sorted = mean_importances.sort_values(by='attribution', ascending=False)
+    #
+    #     plt.figure(figsize=(10, 15))
+    #     bars = plt.barh(mean_importances_sorted['feature'], mean_importances_sorted['attribution'], color='skyblue')
+    #     for bar in bars:
+    #         plt.text(bar.get_width(), bar.get_y() + bar.get_height() / 2,
+    #                  f"{bar.get_width():.2f}", va='center', rotation=90)
+    #     plt.xlabel('attribution')
+    #     plt.title('Feature Importance Across All Subjects')
+    #     plt.tight_layout()
+    #     plt.savefig(f"{self.outputFolder}/{method}_importances.png", format='png', dpi=300, bbox_inches='tight')
+    #     plt.close()
+    #
+    #     mean_importances = df_importances.groupby('feature')['attribution'].mean().reset_index()
+    #     mean_importances_sorted = mean_importances.sort_values(by='attribution', ascending=False)
+    #     self.feature_importance_results[method] = mean_importances_sorted['feature'].tolist()  # Store sorted features
+    #     self.save_importances_in_file(mean_importances_sorted, method)
 
     def save_importances_in_file(self, mean_importances_sorted, method):
         filename = f"{self.outputFolder}/{method}.csv"
