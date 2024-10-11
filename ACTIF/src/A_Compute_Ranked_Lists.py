@@ -25,10 +25,10 @@ os.makedirs(model_save_dir, exist_ok=True)
 
 if __name__ == '__main__':
 
-    # 1. Modell:
+    # 1. Modelle:
     #   FOVAL:  GIW, Robust Vision, Tufts
     #   XXX: 1 Datensatz
-    #   YYY : 1 Datensatz
+    #   YYY: 1 Datensatz
 
     # 2. Sensitivity analysis:
     # deeplift: zero, random, mean input baselines
@@ -40,7 +40,23 @@ if __name__ == '__main__':
     # Ablation:
     # Shuffle:
 
-    # 3.
+    # 3. Vergleiche:
+    # Für jedes Modell, jeden Datensatz, jede Methode, mit allen Sensitivity Parameter, mit jeder ACTIF Variante
+    # Modelle: 3
+    # Datensätze: 3
+    # Methode: 10
+    # Actif Varianten: 4
+    # Sensitivitätsparameter: bis zu 3 (gesamt 60 parameterisierte Methoden)
+
+    # Methoden: 60 Methoden (alle Parametervarianten, ACTIF Varianten) pro Datensatz
+    # Datensätze: 3
+    # Gesamt: 180 Methoden = Ranked Lists
+
+    # Auswertung: Für jede Methode mean über alle Datensätze und innerhalb Datensatz vergleichen
+    #   - Memory Consumption
+    #   - Computing Time
+    #   - Performance
+
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 1. Define Dataset
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
