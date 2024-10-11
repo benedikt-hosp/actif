@@ -3,10 +3,11 @@ import torch.nn as nn
 
 
 class FOVAL(nn.Module):
-    def __init__(self, input_size=4, embed_dim=150, dropout_rate=0.5, output_size=1, fc1_dim=32):
+    def __init__(self, input_size=38, embed_dim=150, dropout_rate=0.5, output_size=1, fc1_dim=32):
         super(FOVAL, self).__init__()
+        self.modelName = "Foval"
         self.hidden_layer_size = embed_dim
-        self.input_size = 38
+        self.input_size = input_size
 
         # Linear layer to transform input features if needed
         self.input_linear = nn.Linear(in_features=self.input_size, out_features=self.input_size)
@@ -22,6 +23,15 @@ class FOVAL(nn.Module):
         self.fc1 = nn.Linear(self.hidden_layer_size, np.floor_divide(fc1_dim, 4))  # First additional FC layer
         self.fc5 = nn.Linear(np.floor_divide(fc1_dim, 4), output_size)  # Final FC layer for output
         self.activation = nn.ELU()
+        self.print_model_parameter_size()
+
+    def print_model_parameter_size(self):
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+        print("CURRENT MODEL IS: ", self.modelName)
+        print(f"Total parameters: {total_params}")
+        print(f"Trainable parameters: {trainable_params}")
 
     def forward(self, input_seq, return_intermediates=False):
         intermediates = {'Input': input_seq}

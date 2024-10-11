@@ -23,19 +23,6 @@ model_save_dir = "../models"
 os.makedirs(model_save_dir, exist_ok=True)
 
 
-def loadFOVALModel(model_path, featureCount=54):
-    jsonFile = model_path + '.json'
-
-    with open(jsonFile, 'r') as f:
-        hyperparameters = json.load(f)
-
-    model = FOVAL(input_size=featureCount, embed_dim=hyperparameters['embed_dim'],
-                  fc1_dim=hyperparameters['fc1_dim'],
-                  dropout_rate=hyperparameters['dropout_rate']).to(device)
-
-    return model, hyperparameters
-
-
 if __name__ == '__main__':
 
     # 1. Modell:
@@ -60,11 +47,10 @@ if __name__ == '__main__':
     dataset = RobustVisionDataset(data_dir="../data/input/robustvision/", sequence_length=10)
     dataset.load_data()
 
-    model, hyperparameters = loadFOVALModel(model_path="../models/foval/config/foval")
-    raw = True
+    modelName = "Foval"
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 3. Create Ranked Lists
     # ACTIF Creation: Calculate feature importance ranking for all methods collect sorted ranking list, memory usage, and computation speed
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    fmv = FeatureRankingsCreator(modelName='Foval', model=model, hyperparameters=hyperparameters, datasetName='robustvision', dataset=dataset, raw=raw)
+    fmv = FeatureRankingsCreator(modelName=modelName, datasetName='robustvision', dataset=dataset)
     fmv.process_methods()

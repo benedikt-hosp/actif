@@ -329,7 +329,7 @@ class RobustVisionDataset(AbstractDatasetClass):
 
     def prepare_loader(self, subject_index, batch_size, is_train=False):
         subjects = subject_index if isinstance(subject_index, list) else [subject_index]
-        print(f"Preparing data for subjects: {subjects}")
+        # print(f"Preparing data for subjects: {subjects}")
         data = self.input_data[self.input_data['SubjectID'].isin(subjects)]
 
         # Check if the data is empty before proceeding
@@ -353,7 +353,7 @@ class RobustVisionDataset(AbstractDatasetClass):
         features, targets = separate_features_and_targets(sequences)
 
         # Convert to tensors and create data loader
-        features_tensor, targets_tensor = create_lstm_tensors_dataset(features, targets)
+        features_tensor, targets_tensor = create_lstm_tensors_dataset(features, targets, is_train)
         data_loader = create_dataloaders_dataset(features_tensor, targets_tensor, batch_size=batch_size)
 
         return data_loader

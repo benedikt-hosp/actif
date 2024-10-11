@@ -648,8 +648,8 @@ def createFeatures(data_in, isGIW=False):
                          'World_Gaze_Origin_L_Z']
 
     data_in = data_in[input_features]
-    print("Preprocessor: Size of created features: ", data_in.shape)
-    print("Preprocessor: Features ", data_in.columns)
+    # print("Preprocessor: Size of created features: ", data_in.shape)
+    # print("Preprocessor: Features ", data_in.columns)
 
     return data_in
 
