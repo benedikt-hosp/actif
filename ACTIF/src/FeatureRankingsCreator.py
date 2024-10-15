@@ -145,9 +145,9 @@ class FeatureRankingsCreator:
             # 'shap_values_v2_INV',
             # 'shap_values_v2_PEN',
 
-            'shap_values_v3_MEAN',
-            'shap_values_v3_MEANSTD',
-            'shap_values_v3_INV',
+            # 'shap_values_v3_MEAN',
+            # 'shap_values_v3_MEANSTD',
+            # 'shap_values_v3_INV',
             'shap_values_v3_PEN',
         ]
 
@@ -1130,6 +1130,9 @@ class FeatureRankingsCreator:
 
             elif explainer_type == 'gradient':
                 explainer = shap.GradientExplainer(self.currentModel, background_data)
+                shap_values = explainer.shap_values(input_batch, )
+                shap_values_accumulated.append(shap_values)
+
             elif explainer_type == 'kernel':
                 # Use PyTorchModelWrapper_SHAP for KernelExplainer to handle 3D input and aggregate the output
                 model_wrapper = PyTorchModelWrapper_SHAP(self.currentModel)
