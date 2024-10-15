@@ -5,13 +5,12 @@ import torch
 import numpy as np
 import pandas as pd
 import shap
+from shap import DeepExplainer
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 from tqdm import tqdm
 from captum.attr import IntegratedGradients, FeatureAblation, DeepLift
 from memory_profiler import memory_usage
-from PyTorchModelWrapper import PyTorchModelWrapper
 
 import torch
 from torch.cuda.amp import autocast
@@ -23,6 +22,37 @@ from models.foval.FOVAL import FOVAL
 device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 torch.backends.cudnn.enabled = False
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+
+
+class PyTorchModelWrapper_SHAP:
+    def __init__(self, model):
+        self.model = model
+
+    def __call__(self, x):
+        # Convert NumPy array to PyTorch tensor
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
+
+        # # Check if the input is 2D or 3D
+        # if x_tensor.dim() == 2:
+        #     # Reshape it to 3D if it's 2D, assuming shape (batch_size, features) to (batch_size, 1, features)
+        #     x_tensor = x_tensor.unsqueeze(1)  # Add a time dimension
+
+        # Forward pass through the model (expects 3D input)
+        with torch.no_grad():
+            model_output = self.model(x_tensor)  # Model output should still be 3D
+
+        # Aggregate the output over time steps (e.g., mean aggregation)
+        if model_output.dim() == 3:
+            aggregated_output = model_output.mean(dim=1)  # Aggregate over time (batch_size, features)
+            print("Model output is 3D")
+        else:
+            # If model_output is not 3D, we return it as-is (or handle another case)
+            aggregated_output = model_output
+            print("Model output is 2D")
+            print("Shape: ", aggregated_output.shape)
+
+        # Return the aggregated output as a NumPy array
+        return aggregated_output.cpu().numpy()
 
 
 class FeatureRankingsCreator:
@@ -75,45 +105,45 @@ class FeatureRankingsCreator:
             # 'deeplift_mean_INV',          # ok
             # 'deeplift_mean_PEN',          # ok
 
-            # 'nisp_v1_MEAN',                 # ok
-            # 'nisp_v1_MEANSTD',
-            # 'nisp_v1_INV',
-            # 'nisp_v1_PEN',
+            # 'nisp_v1_MEAN',               # ok
+            # 'nisp_v1_MEANSTD',            # ok
+            # 'nisp_v1_INV',                # ok
+            # 'nisp_v1_PEN',                # ok
             #
-            # 'nisp_v2_MEAN',
-            # 'nisp_v2_MEANSTD',
-            # 'nisp_v2_INV',
-            # 'nisp_v2_PEN',
+            # 'nisp_v2_MEAN',               # ok
+            # 'nisp_v2_MEANSTD',            # ok
+            # 'nisp_v2_INV',                # ok
+            # 'nisp_v2_PEN',                # ok
             #
-            # 'nisp_v3_MEAN',
-            # 'nisp_v3_MEANSTD',
-            # 'nisp_v3_INV',
-            # 'nisp_v3_PEN',
+            # 'nisp_v3_MEAN',               # ok
+            # 'nisp_v3_MEANSTD',            # ok
+            # 'nisp_v3_INV',                # ok
+            # 'nisp_v3_PEN',                # ok
 
-            'captum_intGrad_v1_MEAN',         # memory problems + no actif variants implemented
-            'captum_intGrad_v1_MEANSTD',
-            'captum_intGrad_v1_INV',
-            'captum_intGrad_v1_PEN',
+            # 'captum_intGrad_v1_MEAN',         # ok
+            # 'captum_intGrad_v1_MEANSTD',      # ok
+            # 'captum_intGrad_v1_INV',          # ok
+            # 'captum_intGrad_v1_PEN',          # ok
+            #
+            # 'captum_intGrad_v2_MEAN',         # ok
+            # 'captum_intGrad_v2_MEANSTD',      # ok
+            # 'captum_intGrad_v2_INV',          # ok
+            # 'captum_intGrad_v2_PEN',          # ok
 
-            'captum_intGrad_v2_MEAN',
-            'captum_intGrad_v2_MEANSTD',
-            'captum_intGrad_v2_INV',
-            'captum_intGrad_v2_PEN',
+            # 'captum_intGrad_v3_MEAN',         # ok
+            # 'captum_intGrad_v3_MEANSTD',      # ok
+            # 'captum_intGrad_v3_INV',          # ok
+            # 'captum_intGrad_v3_PEN',          # ok
 
-            'captum_intGrad_v3_MEAN',
-            'captum_intGrad_v3_MEANSTD',
-            'captum_intGrad_v3_INV',
-            'captum_intGrad_v3_PEN',
+            # 'shap_values_v1_MEAN',            # ok
+            # 'shap_values_v1_MEANSTD',         # ok
+            # 'shap_values_v1_INV',             # ok
+            # 'shap_values_v1_PEN',             # ok
 
-            'shap_values_v1_MEAN',            # size mismatch + no actif variants implemented
-            'shap_values_v1_MEANSTD',
-            'shap_values_v1_INV',
-            'shap_values_v1_PEN',
-
-            'shap_values_v2_MEAN',
-            'shap_values_v2_MEANSTD',
-            'shap_values_v2_INV',
-            'shap_values_v2_PEN',
+            # 'shap_values_v2_MEAN',
+            # 'shap_values_v2_MEANSTD',
+            # 'shap_values_v2_INV',
+            # 'shap_values_v2_PEN',
 
             'shap_values_v3_MEAN',
             'shap_values_v3_MEANSTD',
@@ -967,8 +997,6 @@ class FeatureRankingsCreator:
         else:
             raise ValueError(f"Unknown baseline type: {version}")
 
-    import numpy as np
-
     def compute_intgrad_configured(self, valid_loader, baseline_type='zeroes', steps=100, actif_variant='mean'):
         all_attributions = []  # To accumulate attributions for all samples
 
@@ -995,8 +1023,9 @@ class FeatureRankingsCreator:
             explainer = IntegratedGradients(lambda input_batch: self.currentModel(input_batch))
 
             # Calculate attributions
-            with torch.no_grad():
-                attributions = explainer.attribute(inputs, baselines=baseline, n_steps=steps)
+            with autocast():
+                with torch.no_grad():
+                    attributions = explainer.attribute(inputs, baselines=baseline, n_steps=steps)
 
             # Move attributions to CPU and convert to NumPy
             attributions_np = attributions.detach().cpu().numpy()  # Shape should be [batch_size, time_steps, features]
@@ -1047,20 +1076,42 @@ class FeatureRankingsCreator:
         SHAP Values
     '''
 
+    # def compute_shap(self, valid_loader, version='v1', actif_variant='mean'):
+    #     # Define the baseline based on the selected baseline_type
+    #     if version == 'v1':
+    #         # Memory efficient
+    #         return self.compute_shap_configured(valid_loader, background_size=10, nsamples=100)
+    #     elif version == 'v2':
+    #         # Fast execution
+    #         return self.compute_shap_configured(valid_loader, background_size=50, nsamples=300)
+    #     elif version == 'v3':
+    #         # Highest precision
+    #         return self.compute_shap_configured(valid_loader, background_kmeans=True, nsamples=500)
+    #     else:
+    #         raise ValueError(f"Unknown baseline type: {version}")
+
     def compute_shap(self, valid_loader, version='v1', actif_variant='mean'):
-        # Define the baseline based on the selected baseline_type
+        # Configure SHAP settings based on the variant version
         if version == 'v1':
-            return self.compute_shap_configured(valid_loader, background_size=10, nsamples=100)
+            # Memory-Efficient Variant: GradientExplainer with reduced samples and background
+            print("Running Memory-Efficient SHAP...")
+            return self.compute_shap_configured(valid_loader, background_size=10, nsamples=50,
+                                                explainer_type='gradient', actif_variant=actif_variant)
         elif version == 'v2':
-            return self.compute_shap_configured(valid_loader, background_size=50, nsamples=300)
+            # Time-Efficient Variant: KernelExplainer with small background and samples
+            print("Running Time-Efficient SHAP...")
+            return self.compute_shap_configured(valid_loader, background_size=5, nsamples=20, explainer_type='kernel',
+                                                actif_variant=actif_variant)
         elif version == 'v3':
-            return self.compute_shap_configured(valid_loader, background_kmeans=True, nsamples=500)
+            # High-Precision Variant: DeepExplainer with large background and high nsamples
+            print("Running High-Precision SHAP...")
+            return self.compute_shap_configured(valid_loader, background_size=50, nsamples=1000, explainer_type='deep',
+                                                actif_variant=actif_variant)
         else:
-            raise ValueError(f"Unknown baseline type: {version}")
+            raise ValueError(f"Unknown version: {version}")
 
-    def compute_shap_configured(self, valid_loader, background_size=20, nsamples=100, background_kmeans=False,
+    def compute_shap_configured(self, valid_loader, background_size=20, nsamples=100, explainer_type='kernel',
                                 actif_variant='mean'):
-
         self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
 
@@ -1069,30 +1120,119 @@ class FeatureRankingsCreator:
         for input_batch, _ in valid_loader:
             input_batch = input_batch.to(device)
 
-            # Background data sampling
-            if background_kmeans:
-                background_data = shap.kmeans(input_batch.cpu().numpy(), background_size).data
+            # Choose background data for SHAP (use first few samples)
+            background_data = input_batch[:background_size]
+            # Initialize the appropriate SHAP explainer based on the variant
+            if explainer_type == 'deep':
+                explainer = shap.DeepExplainer(self.currentModel, background_data)
+                shap_values = explainer.shap_values(input_batch, check_additivity=False)
+                shap_values_accumulated.append(shap_values)
+
+            elif explainer_type == 'gradient':
+                explainer = shap.GradientExplainer(self.currentModel, background_data)
+            elif explainer_type == 'kernel':
+                # Use PyTorchModelWrapper_SHAP for KernelExplainer to handle 3D input and aggregate the output
+                model_wrapper = PyTorchModelWrapper_SHAP(self.currentModel)
+
+                # Convert background data to NumPy and keep it in 3D format
+                background_data_np = background_data.cpu().numpy()
+                explainer = shap.KernelExplainer(model_wrapper, background_data_np)
+
+                # Compute SHAP values
+                shap_values = explainer.shap_values(input_batch.cpu().numpy(), nsamples=nsamples)
+                shap_values_accumulated.append(shap_values)
+
             else:
-                background_data = input_batch[:background_size].cpu().numpy()
+                raise ValueError(f"Unsupported explainer type: {explainer_type}")
 
-            input_instance = input_batch.cpu().numpy().reshape(input_batch.size(0), -1)
-            model_wrapper = PyTorchModelWrapper(self.currentModel, (10, 38))
+        # Concatenate SHAP values across batches
+        shap_values_np = np.concatenate(shap_values_accumulated, axis=0)
 
-            explainer = shap.KernelExplainer(model_wrapper, background_data)
-            shap_values = explainer.shap_values(input_instance, nsamples=nsamples)
-            shap_values_accumulated.append(shap_values)
-
-        shap_values_np = np.concatenate(shap_values_accumulated, axis=1)
+        # Reshape SHAP values to match the original input format (num_samples, timesteps, features)
         shap_values_reshaped = shap_values_np.reshape(-1, 10, 38)
+
+        # Aggregate SHAP values over time steps (axis=1) to get (num_samples, features)
         mean_shap_values_timesteps = np.mean(shap_values_reshaped, axis=1)
-        mean_shap_values_combined = np.mean(mean_shap_values_timesteps, axis=0)
 
-        if mean_shap_values_combined.shape != (38,):
-            raise ValueError(f"Expected (38,), got: {mean_shap_values_combined.shape}")
+        # Apply the selected ACTIF variant for feature importance aggregation
+        if actif_variant == 'mean':
+            importance = self.calculate_actif_mean(mean_shap_values_timesteps)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(mean_shap_values_timesteps)
+        elif actif_variant == 'inv':
+            importance = self.calculate_actif_inverted_weighted_mean(mean_shap_values_timesteps)
+        elif actif_variant == 'robust':
+            importance = self.calculate_actif_robust(mean_shap_values_timesteps)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
 
-        shap_values_df = pd.DataFrame([mean_shap_values_combined], columns=self.selected_features)
-        results = [{'feature': feature, 'attribution': attribution} for feature, attribution in shap_values_df.items()]
+        # Store the SHAP values as a dataframe for processing
+        shap_values_df = pd.DataFrame([importance], columns=self.selected_features)
+
+        # Compute the feature importance based on the ACTIF variant
+        feature_importance = shap_values_df.abs().mean().sort_values(ascending=False)
+
+        # Return the feature importance as a list of dictionaries
+        results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
+                   feature_importance.items()]
+
         return results
+
+    #
+    # # original
+    # def compute_shap_configured(self, valid_loader, background_size=20, actif_variant='mean'):
+    #     self.load_model(self.currentModelName)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     shap_values_accumulated = []
+    #
+    #     for input_batch, _ in valid_loader:
+    #         input_batch = input_batch.to(device)
+    #
+    #         # Use a few samples as background
+    #         background_data = input_batch[:background_size]
+    #
+    #         # Initialize DeepExplainer with the PyTorch model and background data
+    #         explainer = shap.DeepExplainer(self.currentModel, background_data)
+    #
+    #         # Compute SHAP values
+    #         shap_values = explainer.shap_values(input_batch, check_additivity=False)
+    #         shap_values_accumulated.append(shap_values)
+    #
+    #     # Concatenate SHAP values across batches
+    #     shap_values_np = np.concatenate(shap_values_accumulated, axis=0)
+    #
+    #     # Reshape SHAP values to match the original input format
+    #     shap_values_reshaped = shap_values_np.reshape(-1, 10, 38)
+    #
+    #     # Aggregate SHAP values over time steps
+    #     mean_shap_values_timesteps = np.mean(shap_values_reshaped, axis=1)
+    #
+    #     # Apply the selected ACTIF variant for feature importance aggregation
+    #     if actif_variant == 'mean':
+    #         importance = self.calculate_actif_mean(mean_shap_values_timesteps)
+    #     elif actif_variant == 'meanstd':
+    #         importance = self.calculate_actif_meanstddev(mean_shap_values_timesteps)
+    #     elif actif_variant == 'inv':
+    #         importance = self.calculate_actif_inverted_weighted_mean(mean_shap_values_timesteps)
+    #     elif actif_variant == 'robust':
+    #         importance = self.calculate_actif_robust(mean_shap_values_timesteps)
+    #     else:
+    #         raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+    #
+    #     # Flatten 'importance' to make it 2D-compatible with DataFrame
+    #     importance_flat = importance.flatten()
+    #
+    #     # Store the SHAP values as a dataframe for processing
+    #     shap_values_df = pd.DataFrame([importance_flat], columns=self.selected_features)
+    #
+    #     # Compute the feature importance based on the ACTIF variant
+    #     feature_importance = shap_values_df.abs().mean().sort_values(ascending=False)
+    #
+    #     # Return the feature importance as a list of dictionaries
+    #     results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
+    #                feature_importance.items()]
+    #     return results
 
     # SHUFFLING:
     # working fine for dynamic model loading, actif variants, no sensitivity possible?

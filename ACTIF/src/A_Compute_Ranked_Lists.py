@@ -30,8 +30,8 @@ if __name__ == '__main__':
     #   XXX: 1 Datensatz
     #   YYY: 1 Datensatz
 
-    # 2. Sensitivity analysis:
-    # deeplift: zero, random, mean input baselines
+    # 2. Sensitivity analysis: V1:Memory Efficient, V2: Fast Execution, V3: High Precision
+    # deeplift:     zero, random, mean input baselines
     # nisp: 1. No mixed precision, full accumulation of activations
     #       2. Half-precision FP16
     #       3. Limiting accumulation to only specific layers
@@ -70,3 +70,15 @@ if __name__ == '__main__':
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     fmv = FeatureRankingsCreator(modelName=modelName, datasetName='robustvision', dataset=dataset)
     fmv.process_methods()
+
+
+
+'''
+LOGs:
+14.10.2024:
+    - Next steps are 
+     a) evaluate performance of the created lists: 
+     FIRST, because I am not sure how well ACTIF turns out with DeepLift and NISP, only if ACTIF shows good performance in comparison
+     b) apply methods on other dataset
+     c) pick another model with 2 datasets and do the same
+'''
