@@ -140,15 +140,15 @@ class FeatureRankingsCreator:
             # 'shap_values_v1_INV',             # ok
             # 'shap_values_v1_PEN',             # ok
 
-            # 'shap_values_v2_MEAN',
-            # 'shap_values_v2_MEANSTD',
-            # 'shap_values_v2_INV',
-            # 'shap_values_v2_PEN',
+            'shap_values_v2_MEAN',
+            'shap_values_v2_MEANSTD',
+            'shap_values_v2_INV',
+            'shap_values_v2_PEN',
 
             # 'shap_values_v3_MEAN',
             # 'shap_values_v3_MEANSTD',
             # 'shap_values_v3_INV',
-            'shap_values_v3_PEN',
+            # 'shap_values_v3_PEN',
         ]
 
     def load_model(self, modelName):
@@ -401,28 +401,6 @@ class FeatureRankingsCreator:
         weighted_importance = mean_activation * std_activation  # Multiply mean by stddev to get importance
         return weighted_importance
 
-    # def calculate_actif_weighted_mean(self, activation):
-    #     """
-    #     Calculate a weighted mean of normalized mean activations and standard deviations.
-    #
-    #     Args:
-    #         activation (np.ndarray): The input activations or features, shape (num_samples, num_features).
-    #
-    #     Returns:
-    #         adjusted_importance (np.ndarray): Weighted importance of normalized mean and stddev.
-    #     """
-    #     activation_abs = np.abs(activation)
-    #     mean_activation = np.mean(activation_abs, axis=0)  # Mean over samples
-    #     std_activation = np.std(activation_abs, axis=0)  # Standard deviation over samples
-    #
-    #     # Normalize mean and stddev
-    #     normalized_mean = (mean_activation - np.min(mean_activation)) / (
-    #             np.max(mean_activation) - np.min(mean_activation))
-    #     normalized_std = (std_activation - np.min(std_activation)) / (np.max(std_activation) - np.min(std_activation))
-    #
-    #     # Calculate weighted mean of normalized values
-    #     adjusted_importance = (normalized_mean + normalized_std) / 2
-    #     return adjusted_importance, mean_activation, std_activation
 
     def calculate_actif_inverted_weighted_mean(self, activation):
         """
@@ -471,18 +449,6 @@ class FeatureRankingsCreator:
         adjusted_importance = normalized_mean * (1 - transformed_std)
 
         return adjusted_importance
-
-    # def calculate_actif_robust_penHigh(self, activations, epsilon=0.01, min_std_threshold=0.01):
-    #     activation_abs = np.abs(activations)
-    #     mean_activation = np.mean(activation_abs, axis=0)
-    #     std_activation = np.std(activation_abs, axis=0)
-    #
-    #     normalized_mean = (mean_activation - np.min(mean_activation)) / (
-    #             np.max(mean_activation) - np.min(mean_activation) + epsilon)
-    #     transformed_std = np.exp(-std_activation / min_std_threshold)
-    #     adjusted_importance = normalized_mean * transformed_std
-    #
-    #     return adjusted_importance, mean_activation, std_activation
 
     '''
     =======================================================================================
@@ -642,52 +608,6 @@ class FeatureRankingsCreator:
             print("No batches processed.")
             return None
 
-    # def compute_deeplift(self,   valid_loader, device, baseline_type='zero'):
-    #     accumulated_attributions = torch.zeros(10, len(self.selected_features), device=device)
-    #     total_batches = 0
-    #
-    #     trained_model.eval()  # Put model in evaluation mode
-    #
-    #     for inputs, _ in valid_loader:
-    #         inputs = inputs.to(device)
-    #
-    #         # Define the baseline based on the selected baseline_type
-    #         if baseline_type == 'zero':
-    #             baselines = torch.zeros_like(inputs)  # Zero baseline
-    #         elif baseline_type == 'random':
-    #             baselines = torch.rand_like(inputs)  # Random baseline (uniform between 0 and 1)
-    #         elif baseline_type == 'mean':
-    #             # Compute the mean baseline (per feature) along dimension 0
-    #             mean_baseline = torch.mean(inputs, dim=0)
-    #
-    #             # Expand the mean_baseline to match the shape of the input
-    #             baselines = mean_baseline.expand_as(inputs)
-    #             # baselines = torch.full_like(inputs, torch.mean(inputs, dim=0).)  # Mean baseline (per feature)
-    #         else:
-    #             raise ValueError(f"Unknown baseline type: {baseline_type}")
-    #
-    #         explainer = DeepLift(trained_model)  # Initialize DeepLIFT with the model
-    #         attributions = explainer.attribute(inputs, baselines=baselines)  # Use the chosen baseline
-    #         accumulated_attributions += attributions.sum(dim=0)
-    #         total_batches += 1
-    #
-    #     if total_batches > 0:
-    #         # Calculate the mean attributions across batches
-    #         mean_attributions = (accumulated_attributions / total_batches).detach().cpu().numpy()
-    #
-    #         # Store the attributions as a dataframe
-    #         attributions_df = pd.DataFrame(mean_attributions, columns=self.selected_features)
-    #         mean_abs_attributions = attributions_df.abs().mean()
-    #         feature_importance = mean_abs_attributions.sort_values(ascending=False)
-    #
-    #         # Return the feature importance results
-    #         results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
-    #                    feature_importance.items()]
-    #         return results
-    #     else:
-    #         print("No batches processed.")
-    #         return None
-
     '''
         NISP
     '''
@@ -819,169 +739,6 @@ class FeatureRankingsCreator:
 
         return results
 
-    #
-    # def compute_nisp(self, valid_loader, version='v1', actif_variant='mean'):
-    #     if version == 'v1':
-    #         return self.compute_nisp_configured(valid_loader, accumulation_steps=1,
-    #                                             use_mixed_precision=False, actif_variant=actif_variant)
-    #     elif version == 'v2':
-    #         return self.compute_nisp_configured(valid_loader, accumulation_steps=1,
-    #                                             use_mixed_precision=True, actif_variant=actif_variant)
-    #
-    #     elif version == 'v3':
-    #         return self.compute_nisp_v3(valid_loader, accumulation_steps=1,
-    #                                     use_mixed_precision=False, actif_variant=actif_variant)
-    #     else:
-    #         raise ValueError(f"Unknown baseline type: {version}")
-    #
-    # def compute_nisp_v3(self, valid_loader, accumulation_steps=1, use_mixed_precision=False,
-    #                     actif_variant='mean'):
-    #     activations = []
-    #
-    #     # Register hook only for the last LSTM layer
-    #     def save_activation(name):
-    #         def hook(model, input, output):
-    #             if isinstance(output, tuple):
-    #                 output = output[0]  # Extract the hidden states
-    #             activations.append(output.detach())  # Detach to avoid tracking gradients
-    #
-    #         return hook
-    #
-    #     # Hook only the last LSTM layer (assuming named 'lstm')
-    #     for name, layer in self.currentModel.named_modules():
-    #         if isinstance(layer, torch.nn.LSTM) and 'lstm' in name:  # Adjust for your LSTM layer name
-    #             layer.register_forward_hook(save_activation(name))
-    #
-    #     self.currentModel.eval()
-    #     importance_scores = torch.zeros(len(self.selected_features), device=device)
-    #
-    #     total_batches = 0
-    #
-    #     if len(valid_loader) == 0:
-    #         print("Skipping subject: The validation loader is empty.")
-    #         return None
-    #
-    #     for i, (inputs, _) in enumerate(valid_loader):
-    #         inputs = inputs.to(device)
-    #
-    #         with autocast(enabled=use_mixed_precision):
-    #             outputs = self.currentModel(inputs)
-    #
-    #             if outputs.dim() == 3:
-    #                 output_importance = outputs.mean(dim=1)
-    #             elif outputs.dim() == 2:
-    #                 output_importance = outputs
-    #             else:
-    #                 raise ValueError(f"Unexpected output shape: {outputs.shape}")
-    #
-    #             reduced_output_importance = output_importance[:, :len(self.selected_features)]
-    #
-    #             # Backpropagate importance scores based on activations from selected layer
-    #             for activation in reversed(activations):
-    #                 if activation.dim() == 3:
-    #                     layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
-    #                 elif activation.dim() == 2:
-    #                     layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
-    #                 importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
-    #
-    #         total_batches += 1
-    #         activations.clear()
-    #
-    #         torch.cuda.empty_cache()
-    #
-    #     if total_batches > 0:
-    #         importance_scores = importance_scores / total_batches
-    #         importance_scores = importance_scores.detach().cpu().numpy()
-    #
-    #         feature_importance = [{'feature': feature, 'attribution': importance_scores[i]} for i, feature in
-    #                               enumerate(self.selected_features)]
-    #         return feature_importance
-    #     else:
-    #         print("No batches processed for this subject.")
-    #         return None
-    #
-    # def compute_nisp_configured(self, valid_loader, accumulation_steps=1,
-    #                             use_mixed_precision=False, actif_variant='mean'):
-    #
-    #     # Load the model and switch to evaluation mode
-    #     self.load_model(self.currentModelName)
-    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
-    #
-    #     activations = []
-    #
-    #     # Register hook to capture activations of each LSTM layer
-    #     def save_activation(name):
-    #         def hook(model, input, output):
-    #             if isinstance(output, tuple):
-    #                 output = output[0]  # Extract the hidden states
-    #             activations.append(output.detach())  # Detach to avoid tracking gradients
-    #
-    #         return hook
-    #
-    #     # Hook into all LSTM layers to capture activations
-    #     for name, layer in self.currentModel.named_modules():
-    #         if isinstance(layer, torch.nn.LSTM):
-    #             layer.register_forward_hook(save_activation(name))
-    #
-    #     self.currentModel.eval()
-    #     importance_scores = torch.zeros(len(self.selected_features), device=device)  # Initialize importance scores
-    #
-    #     total_batches = 0  # For accumulation step counting
-    #
-    #     # Check if the valid_loader is empty and skip the subject if it is
-    #     if len(valid_loader) == 0:
-    #         print("Skipping subject: The validation loader is empty.")
-    #         return None
-    #
-    #     for i, (inputs, _) in enumerate(valid_loader):
-    #         inputs = inputs.to(device)
-    #
-    #         # Mixed precision context
-    #         with autocast(enabled=use_mixed_precision):
-    #             outputs = self.currentModel(inputs)  # Forward pass to trigger hooks and get activations
-    #
-    #             # If outputs have multiple dimensions, handle them appropriately
-    #             if outputs.dim() == 3:  # (batch_size, sequence_length, hidden_size)
-    #                 output_importance = outputs.mean(dim=1)  # Mean over the sequence length
-    #             elif outputs.dim() == 2:  # (batch_size, hidden_size)
-    #                 output_importance = outputs  # Already in correct shape
-    #             else:
-    #                 raise ValueError(f"Unexpected output shape: {outputs.shape}")
-    #
-    #             # Ensure size matches the number of input features
-    #             reduced_output_importance = output_importance[:, :len(self.selected_features)]  # Match feature size
-    #
-    #             # Backpropagate importance scores based on activations
-    #             for activation in reversed(activations):
-    #                 if activation.dim() == 3:  # (batch_size, sequence_length, hidden_size)
-    #                     layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
-    #                 elif activation.dim() == 2:  # (batch_size, hidden_size)
-    #                     layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
-    #
-    #                 # Adjust importance scores with reduced output importance
-    #                 importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
-    #
-    #         total_batches += 1
-    #         activations.clear()  # Clear activations for the next batch
-    #
-    #         # Free GPU cache after each batch
-    #         torch.cuda.empty_cache()
-    #
-    #     # Normalize the importance scores by the number of batches
-    #     if total_batches > 0:
-    #         importance_scores = importance_scores / total_batches
-    #
-    #         # Ensure the importance scores are moved to CPU and converted to numpy
-    #         importance_scores = importance_scores.detach().cpu().numpy()
-    #
-    #         # Create a list of feature importances
-    #         feature_importance = [{'feature': feature, 'attribution': importance_scores[i]} for i, feature in
-    #                               enumerate(self.selected_features)]
-    #
-    #         return feature_importance
-    #     else:
-    #         print("No batches processed for this subject.")
-    #         return None
 
     '''
     Integrated Gradients
@@ -1076,20 +833,6 @@ class FeatureRankingsCreator:
         SHAP Values
     '''
 
-    # def compute_shap(self, valid_loader, version='v1', actif_variant='mean'):
-    #     # Define the baseline based on the selected baseline_type
-    #     if version == 'v1':
-    #         # Memory efficient
-    #         return self.compute_shap_configured(valid_loader, background_size=10, nsamples=100)
-    #     elif version == 'v2':
-    #         # Fast execution
-    #         return self.compute_shap_configured(valid_loader, background_size=50, nsamples=300)
-    #     elif version == 'v3':
-    #         # Highest precision
-    #         return self.compute_shap_configured(valid_loader, background_kmeans=True, nsamples=500)
-    #     else:
-    #         raise ValueError(f"Unknown baseline type: {version}")
-
     def compute_shap(self, valid_loader, version='v1', actif_variant='mean'):
         # Configure SHAP settings based on the variant version
         if version == 'v1':
@@ -1100,7 +843,7 @@ class FeatureRankingsCreator:
         elif version == 'v2':
             # Time-Efficient Variant: KernelExplainer with small background and samples
             print("Running Time-Efficient SHAP...")
-            return self.compute_shap_configured(valid_loader, background_size=5, nsamples=20, explainer_type='kernel',
+            return self.compute_shap_configured(valid_loader, background_size=5, nsamples=20, explainer_type='gradient',
                                                 actif_variant=actif_variant)
         elif version == 'v3':
             # High-Precision Variant: DeepExplainer with large background and high nsamples
@@ -1181,64 +924,7 @@ class FeatureRankingsCreator:
 
         return results
 
-    #
-    # # original
-    # def compute_shap_configured(self, valid_loader, background_size=20, actif_variant='mean'):
-    #     self.load_model(self.currentModelName)
-    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
-    #
-    #     shap_values_accumulated = []
-    #
-    #     for input_batch, _ in valid_loader:
-    #         input_batch = input_batch.to(device)
-    #
-    #         # Use a few samples as background
-    #         background_data = input_batch[:background_size]
-    #
-    #         # Initialize DeepExplainer with the PyTorch model and background data
-    #         explainer = shap.DeepExplainer(self.currentModel, background_data)
-    #
-    #         # Compute SHAP values
-    #         shap_values = explainer.shap_values(input_batch, check_additivity=False)
-    #         shap_values_accumulated.append(shap_values)
-    #
-    #     # Concatenate SHAP values across batches
-    #     shap_values_np = np.concatenate(shap_values_accumulated, axis=0)
-    #
-    #     # Reshape SHAP values to match the original input format
-    #     shap_values_reshaped = shap_values_np.reshape(-1, 10, 38)
-    #
-    #     # Aggregate SHAP values over time steps
-    #     mean_shap_values_timesteps = np.mean(shap_values_reshaped, axis=1)
-    #
-    #     # Apply the selected ACTIF variant for feature importance aggregation
-    #     if actif_variant == 'mean':
-    #         importance = self.calculate_actif_mean(mean_shap_values_timesteps)
-    #     elif actif_variant == 'meanstd':
-    #         importance = self.calculate_actif_meanstddev(mean_shap_values_timesteps)
-    #     elif actif_variant == 'inv':
-    #         importance = self.calculate_actif_inverted_weighted_mean(mean_shap_values_timesteps)
-    #     elif actif_variant == 'robust':
-    #         importance = self.calculate_actif_robust(mean_shap_values_timesteps)
-    #     else:
-    #         raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
-    #
-    #     # Flatten 'importance' to make it 2D-compatible with DataFrame
-    #     importance_flat = importance.flatten()
-    #
-    #     # Store the SHAP values as a dataframe for processing
-    #     shap_values_df = pd.DataFrame([importance_flat], columns=self.selected_features)
-    #
-    #     # Compute the feature importance based on the ACTIF variant
-    #     feature_importance = shap_values_df.abs().mean().sort_values(ascending=False)
-    #
-    #     # Return the feature importance as a list of dictionaries
-    #     results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
-    #                feature_importance.items()]
-    #     return results
-
     # SHUFFLING:
-    # working fine for dynamic model loading, actif variants, no sensitivity possible?
     def feature_shuffling_importances(self, valid_loader, actif_variant='mean'):
         """
         Compute feature importances using feature shuffling and apply ACTIF aggregation.
