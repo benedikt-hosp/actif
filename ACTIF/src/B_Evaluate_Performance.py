@@ -4,10 +4,10 @@ import os
 import torch
 import pandas as pd
 
+from models.foval.FOVAL import FOVAL
 from models.foval.foval_preprocessor import input_features
 from src.dataset_classes.robustVision_dataset import RobustVisionDataset
 import warnings
-from SimpleLSTM import FOVAL
 from src.training.foval_trainer import FOVALTrainer
 
 # ================ Display options
@@ -38,14 +38,13 @@ def get_top_features(importances, percentage):
     return top_features
 
 
-def test_list(feature_list, modelName, dataset, methodName, trainer):
-    test_baseline_model(trainer, modelName, dataset)
+def test_list(feature_list, modelName, dataset, methodName, trainer, save_path):
     percentages = [0.1,
                    0.2,
                    0.3,
                    0.4,
                    0.5,
-                   0.6
+                   # 0.6
                    ]
     results = {}
     list_name = modelName + '_' + dataset.name + '_' + methodName
@@ -56,13 +55,15 @@ def test_list(feature_list, modelName, dataset, methodName, trainer):
         top_features = get_top_features(feature_list, percent)
         feature_count = len(top_features) - 2  # Adjust based on your specific needs
         remaining_features = top_features
+        print(f" 3. with top {percent} % features. ")
+
         trainer.feature_names = remaining_features
         trainer.dataset = dataset
-        performance = trainer.cross_validate()
+        performance = trainer.cross_validate(num_epochs=500)
         results[list_name][f'{int(percent * 100)}%'] = performance
 
         result_line = f'Method: {list_name}, Percent: {percent * 100}%, Performance: {performance}\n'
-        with open("ACTIF_evaluation_results.txt", "a") as file:
+        with open(save_path, "a") as file:
             file.write(result_line)
         print(result_line)
 
@@ -88,9 +89,16 @@ def test_baseline_model(trainer, modelName, dataset):
     with open("ACTIF_evaluation_results.txt", "a") as file:
         file.write(f"Baseline Performance of {modelName} on dataset {dataset.name}: {full_feature_performance}\n")
 
+    print(f"Baseline Performance of {modelName} on dataset {dataset.name}: {full_feature_performance}\n")
+    return full_feature_performance
+
 
 def loadFOVALModel(model_path, featureCount=54):
     jsonFile = model_path + '.json'
+
+    # Print the current working directory
+    current_directory = os.getcwd()
+    print(f"Current working directory: {current_directory}")
 
     with open(jsonFile, 'r') as f:
         hyperparameters = json.load(f)
@@ -118,31 +126,32 @@ def getFeatureList(path):
 
 
 if __name__ == '__main__':
-    """
-        Setup Model
-    """
-    sequence_length = 10  # Define your sequence length
+    # Setup Model
+    modelName = "Foval"
+    datasetName = "robustvision"
 
-    # 1. dataset
     dataset = RobustVisionDataset(data_dir="../data/input/robustvision/", sequence_length=10)
     dataset.load_data()
-    # 2. model
     model, hyperparameters = loadFOVALModel(model_path="../models/foval/config/foval")
-    # 3. Trainer
-    trainer = FOVALTrainer(config_path="models/config/foval.json", dataset=dataset, device=device,
+    trainer = FOVALTrainer(config_path="../models/foval/config/foval.json", dataset=dataset, device=device,
                            feature_names=input_features, save_intermediates_every_epoch=False)
     trainer.setup()
 
-    # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    # ACTIF Evaluation:
-    # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    # LOOP over combinations of model and dataset/trainer
-    modelName = "Foval"
-    method = "actif_mean"
-    file_name = f'{method}.csv'
-    folder_path = f'../results/{modelName}/{dataset.name}/FeaturesRankings_Creation'
-    file_path = os.path.join(folder_path, file_name)
-    current_feature_list = getFeatureList(file_path)
+    # 1. Baseline performance evaluation
+    print(f" 1. Testing baseline {modelName} on dataset {datasetName}")
+    baseline_performance = test_baseline_model(trainer, modelName, dataset)
 
-    test_list(feature_list=current_feature_list, dataset=dataset, modelName=modelName, methodName=method,
-              trainer=trainer)
+    # Loop over all feature lists (CSV files)
+    folder_path = f'../results/{modelName}/{dataset.name}/FeaturesRankings_Creation'
+    save_path = f'../results/{modelName}/{dataset.name}/ACTIF_evaluation_results.txt'
+
+
+
+    for file_name in os.listdir(folder_path):
+        if file_name.endswith(".csv"):
+            file_path = os.path.join(folder_path, file_name)
+            method = file_name.replace('.csv', '')  # Method name from the file name
+            current_feature_list = getFeatureList(file_path)
+            print(f" 2.Testing list {method}")
+            test_list(feature_list=current_feature_list, dataset=dataset, modelName=modelName, methodName=method,
+                      trainer=trainer, save_path=save_path)

@@ -1,0 +1,2 @@
+Method: Foval_robustvision_ablation_INV, Percent: 10.0%, Performance: 9.565092144361284
+Method: Foval_robustvision_ablation_INV, Percent: 20.0%, Performance: 9.923465211863768

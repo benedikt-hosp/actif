@@ -12,12 +12,15 @@ from sklearn.model_selection import KFold
 from torch.cuda.amp import autocast, GradScaler
 
 from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from models.foval.foval import Foval
+from models.foval.FOVAL import FOVAL
 from models.foval.utilities import create_optimizer
+
+device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 
 
 class FOVALTrainer:
-    def __init__(self, config_path, dataset: AbstractDatasetClass, device, feature_names, save_intermediates_every_epoch):
+    def __init__(self, config_path, dataset: AbstractDatasetClass, device, feature_names,
+                 save_intermediates_every_epoch):
         """
         Initialize the FOVALTrainer with feature count, dataset object, and model save path.
         """
@@ -27,7 +30,7 @@ class FOVALTrainer:
         self.fc1_dim = None
         self.patience_counter = 0
         self.early_stopping_threshold = 1.0
-        self.patience_limit = 150 # originally 150
+        self.patience_limit = 150  # originally 150
         self.hyperparameters = None
         self.feature_count = len(feature_names) - 2  # as we need to remove target and subject column
         self.feature_names = feature_names
@@ -79,13 +82,9 @@ class FOVALTrainer:
         print("Hyper parameters: ", hyper_parameters)
 
     def initialize_model(self):
-        self.model = Foval(device=self.device, feature_count=self.feature_count)
-        self.model.initialize(
-            input_size=self.feature_count,
-            fc1_dim=self.hyperparameters['fc1_dim'],
-            dropout_rate=self.hyperparameters['dropout_rate'],
-            hidden_layer_size=self.hyperparameters['embed_dim']
-        )
+        self.model = FOVAL(input_size=self.feature_count, embed_dim=self.hyperparameters['embed_dim'],
+                           fc1_dim=self.hyperparameters['fc1_dim'],
+                           dropout_rate=self.hyperparameters['dropout_rate']).to(device)
 
     def save_activations_and_weights(self, intermediates, filename, file_path):
         save_path_tensors = os.path.join(file_path, f"{filename}_activations.pt")
@@ -105,7 +104,7 @@ class FOVALTrainer:
         print(f"Tensors saved to {save_path_tensors}")
         print(f"NumPy arrays saved to {save_path_numpy}")
 
-    def cross_validate(self, num_epochs=10):
+    def cross_validate(self, num_epochs=500):
         """
         Perform cross-validation on the dataset.
         """
@@ -306,7 +305,8 @@ class FOVALTrainer:
             self.patience_counter += 1
 
         # Early stopping logic
-        if self.current_metrics["val_mae"] < self.early_stopping_threshold or self.patience_counter > self.patience_limit:
+        if self.current_metrics[
+            "val_mae"] < self.early_stopping_threshold or self.patience_counter > self.patience_limit:
             isBreakLoop = True
 
         return isBreakLoop
@@ -457,5 +457,3 @@ class FOVALTrainer:
     def reset_metrics(self):
         self.best_metrics = {"smae": float('inf'), "mse": float('inf'), "mae": float('inf')}
         # self.current_metrics = {"val_smae": float('inf'), "mse": float('inf'), "val_mae": float('inf')}
-
-

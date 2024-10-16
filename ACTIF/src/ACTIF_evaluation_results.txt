@@ -1,0 +1,1 @@
+Baseline Performance of Foval on dataset robustvision: 12.093323222746658
