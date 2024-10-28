@@ -485,7 +485,7 @@ def normalize_subject_data(subject_data, scaler):
     return subject_data_normalized
 
 
-def createFeatures(data_in, isGIW=False):
+def createFeatures(data_in, currentFeatures, isGIW=False):
     if isGIW:
         # # Calculate IPD based on ground truth focused depth
         # data_in['Calculated_IPD'] = data_in.apply(calculate_ipd, axis=1)
@@ -647,7 +647,11 @@ def createFeatures(data_in, isGIW=False):
     excluded_features = ['World_Gaze_Origin_R_X', 'World_Gaze_Origin_R_Z', 'World_Gaze_Origin_L_X',
                          'World_Gaze_Origin_L_Z']
 
-    data_in = data_in[input_features]
+    if currentFeatures:
+        data_in = data_in[currentFeatures]
+    else:
+        data_in = data_in[input_features]
+
     # print("Preprocessor: Size of created features: ", data_in.shape)
     # print("Preprocessor: Features ", data_in.columns)
 

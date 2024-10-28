@@ -1,0 +1,21 @@
+Method,                                       Percent, Run 1,    Run 2,   Run 3,   Run 4,   Run 5,   Mean MAE, Standard Deviation
+Baseline (Foval),	                          100%,    20.39,	 17.30,	  14.01,   11.84,	10.14,   14.74,	   4.14
+captum_intGrad_v1_MEAN,                       10%,	   9.52,	 14.81,	  12.07,   13.25,	13.05,   12.54,	   1.95
+captum_intGrad_v1_MEAN,                       20%,	   10.84,	 16.26,	  13.10,   11.39,	10.46,   12.41,	   2.38
+captum_intGrad_v1_MEAN,                       30%,	   19.87,	 18.43,	  13.64,   10.94,	12.18,	 15.01,	   3.93
+Baseline (Foval),                             100%,    20.3889,  17.2996, 14.0137, 11.8421, 10.1382, 14.7365,  4.1402
+Foval_robustvision_captum_intGrad_v1_MEANSTD, 10.0%,   9.5176,   14.8138, 12.0676, 13.2454, 13.0510, 12.5391,  1.9549
+Foval_robustvision_captum_intGrad_v1_MEANSTD, 20.0%,   10.8392,  16.2589, 13.1014, 11.3950, 10.4568, 12.4103,  2.3772
+Foval_robustvision_captum_intGrad_v1_MEANSTD, 30.0%,   19.8701,  18.4253, 13.6382, 10.9392, 12.1837, 15.0113,  3.9283
+Foval_robustvision_captum_intGrad_v1_PEN,     10.0%,   9.7138,   17.4628, 13.5009, 14.9766, 18.9894, 14.9287,  3.6106
+Foval_robustvision_captum_intGrad_v1_PEN,     20.0%,   9.8608,   16.7033, 13.4168, 12.0322, 11.6873, 12.7401,  2.5527
+Foval_robustvision_captum_intGrad_v1_PEN,     30.0%,   9.3953,   13.8607, 12.1243, 12.4007, 12.1475, 11.9857,  1.6158
+Foval_robustvision_captum_intGrad_v2_INV,     10.0%,   9.1993,   14.7444, 14.8252, 12.6078, 11.6969, 12.6147,  2.3414
+Foval_robustvision_captum_intGrad_v2_INV,     20.0%,   9.7008,   16.0142, 14.5553, 11.7987, 9.9557,  12.4049,  2.7986
+Foval_robustvision_captum_intGrad_v2_INV,     30.0%,   10.9107,  13.5510, 14.6464, 13.9837, 10.2947, 12.6773,  1.9458
+Foval_robustvision_captum_intGrad_v2_MEAN,    10.0%,   10.4245,  14.4392, 12.4357, 11.8723, 11.5311, 12.1406,  1.4798
+Foval_robustvision_captum_intGrad_v2_MEAN,    20.0%,   9.8951,   13.9362, 12.2787, 13.1376, 12.1081, 12.2711,  1.5162
+Foval_robustvision_captum_intGrad_v2_MEAN,    30.0%,   11.3477,  14.1812, 13.1811, 11.6549, 9.9830,  12.0696,  1.6387
+Foval_robustvision_captum_intGrad_v2_MEANSTD, 10.0%,   10.3341,  14.0181, 11.5480, 13.4031, 10.4037, 11.9414,  1.6994
+Foval_robustvision_captum_intGrad_v2_MEANSTD, 20.0%, 10.7605, 15.8818, 12.4618, 11.7278, 10.3975, 12.2459, 2.1885
+Foval_robustvision_captum_intGrad_v2_MEANSTD, 30.0%, 11.9467, 14.4471, 12.9695, 12.4641, 11.3700, 12.6395, 1.1725

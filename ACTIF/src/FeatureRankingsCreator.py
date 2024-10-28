@@ -75,76 +75,91 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
+            # ACTIF Variants
             # 'actif_mean',                     # model-agnostic: ok
             # 'actif_mean_stddev',              # ok
             # 'actif_inverted_weighted_mean',   # ok
             # 'actif_robust',                   # ok
-            #
+
+            # SHUFFLE_Actif Aggregation Variants
             # 'shuffle_MEAN',    # ok
             # 'shuffle_MEANSTD', # ok
             # 'shuffle_INV',     # ok
             # 'shuffle_PEN',     # ok
-            #
+
+            # ABLATION ACTIF Aggregation Variants
             # 'ablation_MEAN',      # ok
             # 'ablation_MEANSTD',   # ok
             # 'ablation_INV',       # ok
             # 'ablation_PEN',       # ok
-            #
-            # 'deeplift_zero_MEAN',     # ok
-            # 'deeplift_zero_MEANSTD',  # ok
-            # 'deeplift_zero_INV',      # ok
-            # 'deeplift_zero_PEN',      # ok
-            #
-            # 'deeplift_random_MEAN',       # ok
-            # 'deeplift_random_MEANSTD',    # ok
-            # 'deeplift_random_INV',        # ok
-            # 'deeplift_random_PEN',        # ok
-            #
+
+            # Deeplift ZERO Baseline ACTIF Aggregation Variants
+            'deeplift_zero_MEAN',     # ok
+            'deeplift_zero_MEANSTD',  # ok
+            'deeplift_zero_INV',      # ok
+            'deeplift_zero_PEN',      # ok
+
+            # Deeplift Random Baseline ACTIF Aggregation Variants
+            'deeplift_random_MEAN',       # ok
+            'deeplift_random_MEANSTD',    # ok
+            'deeplift_random_INV',        # ok
+            'deeplift_random_PEN',        # ok
+
+            # Deeplift MEAN baseline ACTIF Aggregation Variants
             # 'deeplift_mean_MEAN',         # ok
             # 'deeplift_mean_MEANSTD',      # ok
             # 'deeplift_mean_INV',          # ok
             # 'deeplift_mean_PEN',          # ok
 
+            # NISP V1 ACTIF Aggregation Variants
             # 'nisp_v1_MEAN',               # ok
             # 'nisp_v1_MEANSTD',            # ok
             # 'nisp_v1_INV',                # ok
             # 'nisp_v1_PEN',                # ok
-            #
+
+            # NISP V2 ACTIF Aggregation Variants
             # 'nisp_v2_MEAN',               # ok
             # 'nisp_v2_MEANSTD',            # ok
             # 'nisp_v2_INV',                # ok
             # 'nisp_v2_PEN',                # ok
-            #
+
+            # NISP V3  ACTIF Aggregation Variants
             # 'nisp_v3_MEAN',               # ok
             # 'nisp_v3_MEANSTD',            # ok
             # 'nisp_v3_INV',                # ok
             # 'nisp_v3_PEN',                # ok
 
-            # 'captum_intGrad_v1_MEAN',         # ok
-            # 'captum_intGrad_v1_MEANSTD',      # ok
-            # 'captum_intGrad_v1_INV',          # ok
-            # 'captum_intGrad_v1_PEN',          # ok
-            #
-            # 'captum_intGrad_v2_MEAN',         # ok
-            # 'captum_intGrad_v2_MEANSTD',      # ok
-            # 'captum_intGrad_v2_INV',          # ok
-            # 'captum_intGrad_v2_PEN',          # ok
+            # IntGrad V1 ACTIF Aggregation Variants
+            'captum_intGrad_v1_MEAN',         # ok
+            'captum_intGrad_v1_MEANSTD',      # ok
+            'captum_intGrad_v1_INV',          # ok
+            'captum_intGrad_v1_PEN',          # ok
 
-            # 'captum_intGrad_v3_MEAN',         # ok
-            # 'captum_intGrad_v3_MEANSTD',      # ok
-            # 'captum_intGrad_v3_INV',          # ok
-            # 'captum_intGrad_v3_PEN',          # ok
+            # Intgrad v2 ACTIF Aggregation Variants
+            'captum_intGrad_v2_MEAN',         # ok
+            'captum_intGrad_v2_MEANSTD',      # ok
+            'captum_intGrad_v2_INV',          # ok
+            'captum_intGrad_v2_PEN',          # ok
 
+            # Intgrad v3 ACTIF Aggregation Variants
+            'captum_intGrad_v3_MEAN',         # ok
+            'captum_intGrad_v3_MEANSTD',      # ok
+            'captum_intGrad_v3_INV',          # ok
+            'captum_intGrad_v3_PEN',          # ok
+
+            # SHAP v1 ACTIF Aggregation Variants
             # 'shap_values_v1_MEAN',            # ok
             # 'shap_values_v1_MEANSTD',         # ok
             # 'shap_values_v1_INV',             # ok
             # 'shap_values_v1_PEN',             # ok
 
+            # SHAP v2 ACTIF Aggregation Variants
             'shap_values_v2_MEAN',
             'shap_values_v2_MEANSTD',
             'shap_values_v2_INV',
             'shap_values_v2_PEN',
 
+            # SHAP v3 ACTIF Aggregation Variants
             # 'shap_values_v3_MEAN',
             # 'shap_values_v3_MEANSTD',
             # 'shap_values_v3_INV',

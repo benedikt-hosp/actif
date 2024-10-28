@@ -37,6 +37,7 @@ class RobustVisionDataset(AbstractDatasetClass):
         self.minDepth = 0.35  # in meter
         self.maxDepth = 3
         self.subject_scaler = RobustScaler()  # or any other scaler
+        self.current_features = None
         self.feature_scaler = None
         self.target_scaler = None
         self.target_column_name = 'Gt_Depth'
@@ -135,7 +136,7 @@ class RobustVisionDataset(AbstractDatasetClass):
         @param data_in:
         @return:
         """
-        data_in = createFeatures(data_in)
+        data_in = createFeatures(data_in, self.current_features)
 
         return data_in
 
@@ -328,7 +329,9 @@ class RobustVisionDataset(AbstractDatasetClass):
         return train_loader, val_loader, test_loader, input_size
 
     def prepare_loader(self, subject_index, batch_size, is_train=False):
-        subjects = subject_index if isinstance(subject_index, list) else [subject_index]
+        subjects = subject_index.tolist() if isinstance(subject_index, np.ndarray) else subject_index
+        subjects = subjects if isinstance(subjects, list) else [subjects]
+
         # print(f"Preparing data for subjects: {subjects}")
         data = self.input_data[self.input_data['SubjectID'].isin(subjects)]
 

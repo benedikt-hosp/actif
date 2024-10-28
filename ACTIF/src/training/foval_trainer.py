@@ -1,6 +1,7 @@
 import json
 import pickle
 import os
+from sklearn.model_selection import train_test_split
 
 import keyboard
 import torch
@@ -15,15 +16,17 @@ from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
 from models.foval.FOVAL import FOVAL
 from models.foval.utilities import create_optimizer
 
+# torch.backends.cudnn.enabled = False
 device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 
 
+
 class FOVALTrainer:
-    def __init__(self, config_path, dataset: AbstractDatasetClass, device, feature_names,
-                 save_intermediates_every_epoch):
+    def __init__(self, config_path, dataset: AbstractDatasetClass, device, save_intermediates_every_epoch):
         """
         Initialize the FOVALTrainer with feature count, dataset object, and model save path.
         """
+        self.n_splits = None
         self.current_fold = None
         self.hidden_layer_size = None
         self.dropout_rate = None
@@ -32,8 +35,8 @@ class FOVALTrainer:
         self.early_stopping_threshold = 1.0
         self.patience_limit = 150  # originally 150
         self.hyperparameters = None
-        self.feature_count = len(feature_names) - 2  # as we need to remove target and subject column
-        self.feature_names = feature_names
+        self.feature_count = None # as we need to remove target and subject column
+        self.feature_names = None
         self.dataset = dataset  # Dataset object from RobustVisionDataset
         self.config_path = config_path
         self.save_path = None
@@ -50,9 +53,6 @@ class FOVALTrainer:
         self.sequence_length = self.dataset.sequence_length
         self.csv_filename = "training_results.csv"
         self.device = device
-        # print(f"Device is: {self.device}")
-        self.n_splits = len(self.dataset.subject_list)
-        # print("Number of splits: ", self.n_splits)
 
         self.beta = None
         self.weight_decay = None
@@ -63,7 +63,10 @@ class FOVALTrainer:
         # Flags
         self.save_intermediates_every_epoch = save_intermediates_every_epoch
 
-    def setup(self):
+    def setup(self, feature_count, feature_names):
+        self.n_splits = len(self.dataset.subject_list)
+        self.feature_count = feature_count  # as we need to remove target and subject column
+        self.feature_names = feature_names
         self.load_model_checkpoint(self.config_path)
         self.initialize_model()
 
@@ -104,52 +107,86 @@ class FOVALTrainer:
         print(f"Tensors saved to {save_path_tensors}")
         print(f"NumPy arrays saved to {save_path_numpy}")
 
-    def cross_validate(self, num_epochs=500):
+    def cross_validate(self, num_epochs=500, loocv=False, num_repeats=5):
         """
         Perform cross-validation on the dataset.
         """
-        kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=42)
-        fold_accuracies = []
 
-        for fold, (train_idx, val_idx) in enumerate(kf.split(self.dataset.subject_list)):
-            print(f"\n\nStarting Fold {fold + 1}/{self.n_splits}")
+        if loocv:
 
-            # Use indices to select subject IDs and convert them to lists
-            train_subjects = list(self.dataset.subject_list[train_idx])
-            val_subjects = list(self.dataset.subject_list[val_idx])
+            kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=42)
+            fold_accuracies = []
 
-            # Set the current fold number
-            self.current_fold = fold + 1
+            for fold, (train_idx, val_idx) in enumerate(kf.split(self.dataset.subject_list)):
+                print(f"\n\nStarting Fold {fold + 1}/{self.n_splits}")
 
-            fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs)
-            fold_accuracies.append(fold_mae)
-            print(f"Fold {fold + 1} MAE: {fold_mae}")
+                # Use indices to select subject IDs and convert them to lists
+                train_subjects = list(self.dataset.subject_list[train_idx])
+                val_subjects = list(self.dataset.subject_list[val_idx])
+
+                # Set the current fold number
+                self.current_fold = fold + 1
+
+                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=True)
+                fold_accuracies.append(fold_mae)
+                print(f"Fold {fold + 1} MAE: {fold_mae}")
+                average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
+                print(f"Average Validation MAE across folds: {average_accuracy}")
+                self.reset_metrics()
+
+            # Calculate overall performance on whole dataset
+            best_fold = min(fold_accuracies)
+            print(f"Best Fold with MAE: {best_fold}")
             average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-            print(f"Average Validation MAE across folds: {average_accuracy}")
-            self.reset_metrics()
-
-        # Calculate overall performance on whole dataset
-        best_fold = min(fold_accuracies)
-        print(f"Best Fold with MAE: {best_fold}")
-        average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-        print(f"Average Cross-Validation MSE: {average_accuracy}")
-        return average_accuracy
-
-    def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10):
-        # Ensure that val_index is not None and has elements
-        if val_index is not None and len(val_index) > 0:
-            validation_participant_name = val_index[0]
-            training_participant_name = train_index
-
-            print("Training Participants Names: ", training_participant_name)
-            print("Validation Participant Name: ", validation_participant_name, "\n")
-
+            print(f"Average Cross-Validation MSE: {average_accuracy}")
+            return average_accuracy
         else:
-            validation_participant_name = "unknown"
 
-        # Set the save path using the validation participant's name
-        self.save_path = os.path.join("results", validation_participant_name)
-        os.makedirs(self.save_path, exist_ok=True)  # Create the directory if it doesn't exist
+            # Initialize a list to store MAE for each fold
+            fold_accuracies = []
+
+            # Set up 5-Fold Cross-Validation
+            kf = KFold(n_splits=num_repeats, shuffle=True, random_state=42)
+
+            # Iterate over each fold
+            for fold, (train_index, val_index) in enumerate(kf.split(self.dataset.subject_list), 1):
+                print(f"\n\nStarting Fold {fold}/{num_repeats}")
+
+                # Get training and validation subjects using the indices provided by KFold
+                train_subjects = [self.dataset.subject_list[i] for i in train_index]
+                val_subjects = [self.dataset.subject_list[i] for i in val_index]
+
+                # Set the current iteration number as fold
+                self.current_fold = fold
+
+                # Perform training and validation for this fold
+                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=False)
+                fold_accuracies.append(fold_mae)
+
+                print(f"Fold {fold} MAE: {fold_mae}")
+                self.reset_metrics()
+
+            # Calculate the average performance over the 5 folds
+            average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
+            print(f"Average Validation MAE over 5 folds: {average_accuracy}")
+
+            return fold_accuracies
+
+    def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10, loocv=False):
+        if loocv:
+            # Use individual directories per validation participant only when doing LOOCV
+            if val_index is not None and len(val_index) > 0:
+                validation_participant_name = val_index[0]  # Single participant for LOOCV
+                self.save_path = os.path.join("results", validation_participant_name)
+            else:
+                validation_participant_name = "unknown"
+                self.save_path = os.path.join("results", "unknown")
+        else:
+            # Use a shared save path for standard cross-validation
+            self.save_path = os.path.join("results", "current_run")
+
+        # Ensure the directory exists
+        os.makedirs(self.save_path, exist_ok=True)
 
         # Prepare data loaders
         self.train_loader, self.valid_loader, self.test_loader, input_size = self.dataset.get_data_loader(
@@ -161,11 +198,11 @@ class FOVALTrainer:
             weight_decay=self.weight_decay)
 
         with torch.profiler.profile(
-                schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
-                on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
-                record_shapes=True,
-                profile_memory=True,
-                with_stack=True
+            schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
+            record_shapes=True,
+            profile_memory=True,
+            with_stack=True
         ) as profiler:
             for epoch in range(num_epochs):
                 self.train_epoch(epoch)
@@ -185,14 +222,10 @@ class FOVALTrainer:
             profiler.step()  # Step profiler at the end of each epoch
 
         # Save model state dictionary after training
-        self.save_model_state(epoch)
-        # print validation SMAE and MAE averages of epoch
-        # average_fold_val_smae = np.mean([f['best_val_smae'] for f in fold_performance])
-        # print(f"Average Validation SMAE across folds: {average_fold_val_smae}")
-        #
-        # average_fold_val_mae = np.mean([f['best_val_mae'] for f in fold_performance])
-        # print(f"Average Validation MAE across folds: {average_fold_val_mae}\n")
-
+        # SPEED UP: COMMENT
+        # self.save_model_state(epoch)
+        print("Training finished in epoch ", epoch)
+        torch.cuda.empty_cache()
         return self.best_metrics["mae"]
 
     def train_epoch(self, epoch):
@@ -221,9 +254,6 @@ class FOVALTrainer:
             scaler.scale(smae_loss).backward()
             scaler.step(self.optimizer)
             scaler.update()
-
-            # smae_loss.backward()
-            # self.optimizer.step()
 
             # Inverse transform for metric calculation (post-backpropagation)
             y_pred_inv = self.inverse_transform_target(y_pred)
@@ -272,8 +302,9 @@ class FOVALTrainer:
         self.current_metrics["val_r2"] = r2_score(np.concatenate(all_true_values), np.concatenate(all_predictions))
 
         # Save activations and weights based on the condition
-        if self.save_intermediates_every_epoch or is_last_epoch:
-            self.save_activations_and_weights(intermediates, "intermediates", self.save_path)
+        # SPEED UP TRAINING: COMMENT
+        # if self.save_intermediates_every_epoch or is_last_epoch:
+        #     self.save_activations_and_weights(intermediates, "intermediates", self.save_path)
 
     def inverse_transform_target(self, y_transformed):
         """
