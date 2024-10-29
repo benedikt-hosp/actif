@@ -139,7 +139,7 @@ if __name__ == '__main__':
 
     # 1. Baseline performance evaluation
     print(f" 1. Testing baseline {modelName} on dataset {datasetName}")
-    baseline_performance = test_baseline_model(trainer, modelName, dataset)
+    # baseline_performance = test_baseline_model(trainer, modelName, dataset)
 
     # Loop over all feature lists (CSV files)
     folder_path = f'../results/{modelName}/{dataset.name}/FeaturesRankings_Creation'
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
 
 
-    for file_name in os.listdir(folder_path):
+    for file_name in reversed(os.listdir(folder_path)):
         if file_name.endswith(".csv"):
             file_path = os.path.join(folder_path, file_name)
             method = file_name.replace('.csv', '')  # Method name from the file name

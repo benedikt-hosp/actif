@@ -104,7 +104,7 @@ class FOVALTrainer:
         print(f"Tensors saved to {save_path_tensors}")
         print(f"NumPy arrays saved to {save_path_numpy}")
 
-    def cross_validate(self, num_epochs=500):
+    def cross_validate(self, num_epochs=300):
         """
         Perform cross-validation on the dataset.
         """

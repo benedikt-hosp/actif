@@ -120,30 +120,30 @@ class FeatureRankingsCreator:
             # 'nisp_v3_INV',                # ok
             # 'nisp_v3_PEN',                # ok
 
-            # 'captum_intGrad_v1_MEAN',         # ok
-            # 'captum_intGrad_v1_MEANSTD',      # ok
-            # 'captum_intGrad_v1_INV',          # ok
-            # 'captum_intGrad_v1_PEN',          # ok
-            #
-            # 'captum_intGrad_v2_MEAN',         # ok
-            # 'captum_intGrad_v2_MEANSTD',      # ok
-            # 'captum_intGrad_v2_INV',          # ok
-            # 'captum_intGrad_v2_PEN',          # ok
+            'captum_intGrad_v1_MEAN',         # ok
+            'captum_intGrad_v1_MEANSTD',      # ok
+            'captum_intGrad_v1_INV',          # ok
+            'captum_intGrad_v1_PEN',          # ok
 
-            # 'captum_intGrad_v3_MEAN',         # ok
-            # 'captum_intGrad_v3_MEANSTD',      # ok
-            # 'captum_intGrad_v3_INV',          # ok
-            # 'captum_intGrad_v3_PEN',          # ok
+            'captum_intGrad_v2_MEAN',         # ok
+            'captum_intGrad_v2_MEANSTD',      # ok
+            'captum_intGrad_v2_INV',          # ok
+            'captum_intGrad_v2_PEN',          # ok
+
+            'captum_intGrad_v3_MEAN',         # ok
+            'captum_intGrad_v3_MEANSTD',      # ok
+            'captum_intGrad_v3_INV',          # ok
+            'captum_intGrad_v3_PEN',          # ok
 
             # 'shap_values_v1_MEAN',            # ok
             # 'shap_values_v1_MEANSTD',         # ok
             # 'shap_values_v1_INV',             # ok
             # 'shap_values_v1_PEN',             # ok
 
-            'shap_values_v2_MEAN',
-            'shap_values_v2_MEANSTD',
-            'shap_values_v2_INV',
-            'shap_values_v2_PEN',
+            # 'shap_values_v2_MEAN',
+            # 'shap_values_v2_MEANSTD',
+            # 'shap_values_v2_INV',
+            # 'shap_values_v2_PEN',
 
             # 'shap_values_v3_MEAN',
             # 'shap_values_v3_MEANSTD',
@@ -545,6 +545,7 @@ class FeatureRankingsCreator:
 
         for inputs, _ in valid_loader:
             inputs = inputs.to(device)
+            print("Batch shape:", inputs.shape)
 
             # Define the baseline based on the selected baseline_type
             if baseline_type == 'zero':
@@ -567,6 +568,7 @@ class FeatureRankingsCreator:
             # Sum across the time steps (dim=1), keeping the batch dimension intact
             attributions_mean = attributions.sum(
                 dim=1)  # Sum over the time steps, results in shape [batch_size, num_features]
+            print(f"Attributions mean shape (after sum over time): {attributions_mean.shape}")
 
             # After processing the batch, free GPU memory
             del inputs
@@ -579,7 +581,8 @@ class FeatureRankingsCreator:
 
         # Concatenate all attributions (to handle batches)
         if total_instances > 0:
-            aggregated_attributions = np.concatenate(all_attributions, axis=0)  # Shape: [num_samples, num_features]
+            # aggregated_attributions = np.concatenate(all_attributions, axis=0)  # Shape: [num_samples, num_features]
+            aggregated_attributions = np.vstack(all_attributions)
 
             # Now, apply the selected ACTIF variant for feature importance aggregation
             if actif_variant == 'mean':
@@ -593,8 +596,14 @@ class FeatureRankingsCreator:
             else:
                 raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
 
+            print("Final concatenated attributions shape:", aggregated_attributions.shape)
+            print("Final concatenated importance shape:", importance.shape)
+
             # Store the attributions as a dataframe for processing
-            attributions_df = pd.DataFrame(importance, index=self.selected_features)
+            # attributions_df = pd.DataFrame(importance, index=self.selected_features)
+            # Create a DataFrame with each feature name as a column and one row of values for `importance`
+            attributions_df = pd.DataFrame([importance], columns=self.selected_features)
+
             # Compute the mean absolute attributions for each feature
             mean_abs_attributions = attributions_df.abs().mean()
             # Sort the features by their mean absolute attributions
@@ -762,9 +771,8 @@ class FeatureRankingsCreator:
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
         self.currentModel.eval()
 
-        # Loop over validation loader
         for inputs, _ in valid_loader:
-            inputs = inputs.to(device)
+            inputs = inputs.to(device)  # Move inputs to device
 
             # Define baselines based on the type
             if baseline_type == 'zeroes':
@@ -776,58 +784,53 @@ class FeatureRankingsCreator:
             else:
                 raise ValueError(f"Unsupported baseline type: {baseline_type}")
 
-            # Create Integrated Gradients explainer using self.currentModel
             explainer = IntegratedGradients(lambda input_batch: self.currentModel(input_batch))
 
-            # Calculate attributions
-            with autocast():
-                with torch.no_grad():
-                    attributions = explainer.attribute(inputs, baselines=baseline, n_steps=steps)
+            # Run attribution and manage memory for each batch
+            try:
+                attributions = explainer.attribute(inputs, baselines=baseline, n_steps=steps)
+                attributions_np = attributions.detach().cpu().numpy().sum(axis=1)  # Summing time steps
+                all_attributions.append(attributions_np)
+            except RuntimeError as e:
+                print(f"Runtime error during attribution: {e}")
+                print("Consider reducing batch size or switching to CPU.")
 
-            # Move attributions to CPU and convert to NumPy
-            attributions_np = attributions.detach().cpu().numpy()  # Shape should be [batch_size, time_steps, features]
-
-            # Flatten time steps by summing across the time dimension (axis 1)
-            attributions_np = attributions_np.sum(axis=1)  # Shape will be [batch_size, features]
-
-            # Store the attributions for this batch
-            all_attributions.append(attributions_np)
-
-            # Clear memory after processing the batch
+            # Clear batch and free memory
+            del inputs, baseline, attributions
             torch.cuda.empty_cache()
 
-        # Final processing of attributions if there were samples processed
         if all_attributions:
-            # Concatenate all attributions from different batches
-            aggregated_attributions = np.concatenate(all_attributions,
-                                                     axis=0)  # Shape will be [total_samples, features]
-
-            # Apply the selected ACTIF variant for feature importance aggregation
+            aggregated_attributions = np.concatenate(all_attributions, axis=0)
             if actif_variant == 'mean':
                 importance = self.calculate_actif_mean(aggregated_attributions)
-            elif actif_variant == 'meanstd':
-                importance = self.calculate_actif_meanstddev(aggregated_attributions)
-            elif actif_variant == 'inv':
-                importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions)
-            elif actif_variant == 'robust':
-                importance = self.calculate_actif_robust(aggregated_attributions)
-            else:
-                raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+            # Include other variants as needed...
 
-            # Store the attributions as a dataframe for processing
-            attributions_df = pd.DataFrame(importance, index=self.selected_features)
-            # Compute the mean absolute attributions for each feature
+            # Construct DataFrame and return importance scores
+            attributions_df = pd.DataFrame([importance], columns=self.selected_features)
             mean_abs_attributions = attributions_df.abs().mean()
-            # Sort the features by their mean absolute attributions
             feature_importance = mean_abs_attributions.sort_values(ascending=False)
 
-            # Return the feature importance as a list of dictionaries
             results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
                        feature_importance.items()]
             return results
         else:
             print("No batches processed.")
             return None
+
+        #     # Store the attributions as a dataframe for processing
+        #     attributions_df = pd.DataFrame(importance, index=self.selected_features)
+        #     # Compute the mean absolute attributions for each feature
+        #     mean_abs_attributions = attributions_df.abs().mean()
+        #     # Sort the features by their mean absolute attributions
+        #     feature_importance = mean_abs_attributions.sort_values(ascending=False)
+        #
+        #     # Return the feature importance as a list of dictionaries
+        #     results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
+        #                feature_importance.items()]
+        #     return results
+        # else:
+        #     print("No batches processed.")
+        #     return None
 
     '''
         SHAP Values
