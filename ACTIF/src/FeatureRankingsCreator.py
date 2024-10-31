@@ -94,16 +94,16 @@ class FeatureRankingsCreator:
             # 'ablation_PEN',       # ok
 
             # Deeplift ZERO Baseline ACTIF Aggregation Variants
-            'deeplift_zero_MEAN',     # ok
-            'deeplift_zero_MEANSTD',  # ok
-            'deeplift_zero_INV',      # ok
-            'deeplift_zero_PEN',      # ok
-
-            # Deeplift Random Baseline ACTIF Aggregation Variants
-            'deeplift_random_MEAN',       # ok
-            'deeplift_random_MEANSTD',    # ok
-            'deeplift_random_INV',        # ok
-            'deeplift_random_PEN',        # ok
+            # 'deeplift_zero_MEAN',     # ok
+            # 'deeplift_zero_MEANSTD',  # ok
+            # 'deeplift_zero_INV',      # ok
+            # 'deeplift_zero_PEN',      # ok
+            #
+            # # Deeplift Random Baseline ACTIF Aggregation Variants
+            # 'deeplift_random_MEAN',       # ok
+            # 'deeplift_random_MEANSTD',    # ok
+            # 'deeplift_random_INV',        # ok
+            # 'deeplift_random_PEN',        # ok
 
             # Deeplift MEAN baseline ACTIF Aggregation Variants
             # 'deeplift_mean_MEAN',         # ok
@@ -112,22 +112,22 @@ class FeatureRankingsCreator:
             # 'deeplift_mean_PEN',          # ok
 
             # NISP V1 ACTIF Aggregation Variants
-            # 'nisp_v1_MEAN',               # ok
-            # 'nisp_v1_MEANSTD',            # ok
-            # 'nisp_v1_INV',                # ok
-            # 'nisp_v1_PEN',                # ok
+            'nisp_v1_MEAN',               # ok
+            'nisp_v1_MEANSTD',            # ok
+            'nisp_v1_INV',                # ok
+            'nisp_v1_PEN',                # ok
 
             # NISP V2 ACTIF Aggregation Variants
-            # 'nisp_v2_MEAN',               # ok
-            # 'nisp_v2_MEANSTD',            # ok
-            # 'nisp_v2_INV',                # ok
-            # 'nisp_v2_PEN',                # ok
+            'nisp_v2_MEAN',               # ok
+            'nisp_v2_MEANSTD',            # ok
+            'nisp_v2_INV',                # ok
+            'nisp_v2_PEN',                # ok
 
             # NISP V3  ACTIF Aggregation Variants
-            # 'nisp_v3_MEAN',               # ok
-            # 'nisp_v3_MEANSTD',            # ok
-            # 'nisp_v3_INV',                # ok
-            # 'nisp_v3_PEN',                # ok
+            'nisp_v3_MEAN',               # ok
+            'nisp_v3_MEANSTD',            # ok
+            'nisp_v3_INV',                # ok
+            'nisp_v3_PEN',                # ok
 
             # IntGrad V1 ACTIF Aggregation Variants
             'captum_intGrad_v1_MEAN',         # ok
