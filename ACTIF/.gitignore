@@ -44,8 +44,6 @@ coverage.xml
 
 # PyCharm project files
 .idea/
-./ACTIF/results/
-./ACTIF/data/input
 
 # VS Code project files
 .vscode/
