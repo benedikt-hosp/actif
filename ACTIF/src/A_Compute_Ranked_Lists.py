@@ -81,4 +81,12 @@ LOGs:
      FIRST, because I am not sure how well ACTIF turns out with DeepLift and NISP, only if ACTIF shows good performance in comparison
      b) apply methods on other dataset
      c) pick another model with 2 datasets and do the same
+     
+ 08.11.2024:
+    - Status: Performance on RV dataset with 10% evaluated
+    - Steps: 
+        - Check if other version of deepActif can be reproduced
+        - check 20% / 30%
+        - apply methods on other dataset
+        - pick another model with 2 datasets and do the same
 '''

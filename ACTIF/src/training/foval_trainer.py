@@ -22,11 +22,11 @@ device = torch.device("cuda:0")  # Replace 0 with the device number for your oth
 
 
 class FOVALTrainer:
-    def __init__(self, config_path, dataset: AbstractDatasetClass, device, save_intermediates_every_epoch):
+    def __init__(self, config_path, dataset: AbstractDatasetClass, device, save_intermediates_every_epoch, num_repetitions):
         """
         Initialize the FOVALTrainer with feature count, dataset object, and model save path.
         """
-        self.n_splits = None
+        self.n_splits = num_repetitions
         self.current_fold = None
         self.hidden_layer_size = None
         self.dropout_rate = None
@@ -107,80 +107,98 @@ class FOVALTrainer:
         print(f"Tensors saved to {save_path_tensors}")
         print(f"NumPy arrays saved to {save_path_numpy}")
 
-    def cross_validate(self, num_epochs=500, loocv=False, num_repeats=5):
+    def cross_validate(self, num_epochs=500, loocv=True, num_repeats=5):
         """
         Perform cross-validation on the dataset.
+        Args:
+            num_epochs: Number of epochs for each fold.
+            loocv: Whether to perform LOOCV or standard cross-validation.
+            num_repeats: Number of repeats for standard k-fold cross-validation.
+        Returns:
+            List of validation MAE values across folds.
         """
+        fold_accuracies = []
 
         if loocv:
-
+            # Leave-One-Out Cross-Validation
             kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=42)
-            fold_accuracies = []
 
             for fold, (train_idx, val_idx) in enumerate(kf.split(self.dataset.subject_list)):
                 print(f"\n\nStarting Fold {fold + 1}/{self.n_splits}")
 
-                # Use indices to select subject IDs and convert them to lists
+                # Use indices to select subject IDs
                 train_subjects = list(self.dataset.subject_list[train_idx])
                 val_subjects = list(self.dataset.subject_list[val_idx])
 
-                # Set the current fold number
-                self.current_fold = fold + 1
+                # Run the fold
+                fold_mae, continue_train = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=True)
 
-                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=True)
                 fold_accuracies.append(fold_mae)
                 print(f"Fold {fold + 1} MAE: {fold_mae}")
                 average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
                 print(f"Average Validation MAE across folds: {average_accuracy}")
+
                 self.reset_metrics()
 
-            # Calculate overall performance on whole dataset
+                # Stop LOOCV early if the user interrupts
+                if not continue_train:
+                    print(f"User interrupted LOOCV during fold {fold + 1}.")
+                    break
+
+            # Summary after LOOCV
             best_fold = min(fold_accuracies)
             print(f"Best Fold with MAE: {best_fold}")
             average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-            print(f"Average Cross-Validation MSE: {average_accuracy}")
-            return average_accuracy
+            print(f"Average Cross-Validation MAE: {average_accuracy}")
+
         else:
-
-            # Initialize a list to store MAE for each fold
-            fold_accuracies = []
-
-            # Set up 5-Fold Cross-Validation
+            # Standard K-Fold Cross-Validation
             kf = KFold(n_splits=num_repeats, shuffle=True, random_state=42)
 
-            # Iterate over each fold
             for fold, (train_index, val_index) in enumerate(kf.split(self.dataset.subject_list), 1):
                 print(f"\n\nStarting Fold {fold}/{num_repeats}")
 
-                # Get training and validation subjects using the indices provided by KFold
+                # Get training and validation subjects
                 train_subjects = [self.dataset.subject_list[i] for i in train_index]
                 val_subjects = [self.dataset.subject_list[i] for i in val_index]
 
-                # Set the current iteration number as fold
-                self.current_fold = fold
+                # Run the fold
+                fold_mae, continue_train = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=False)
 
-                # Perform training and validation for this fold
-                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=False)
                 fold_accuracies.append(fold_mae)
-
                 print(f"Fold {fold} MAE: {fold_mae}")
                 self.reset_metrics()
 
-            # Calculate the average performance over the 5 folds
-            average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-            print(f"Average Validation MAE over 5 folds: {average_accuracy}")
+                # Stop k-fold CV early if the user interrupts
+                if not continue_train:
+                    print(f"User interrupted CV during fold {fold}.")
+                    break
 
-            return fold_accuracies
+            # Summary after K-Fold CV
+            average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
+            print(f"Average Validation MAE over {num_repeats} folds: {average_accuracy}")
+
+        # Return the list of fold MAE values
+        return fold_accuracies
 
     def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10, loocv=False):
+        """
+        Runs a single fold of training, validation, and optional testing.
+        Args:
+            train_index: Indices of the training set.
+            val_index: Indices of the validation set (for LOOCV or k-fold).
+            test_index: Indices of the test set (optional).
+            num_epochs: Number of training epochs.
+            loocv: Whether this is LOOCV or standard cross-validation.
+        Returns:
+            (float, bool): Best validation MAE and a flag indicating whether to continue training.
+        """
+        continue_train = True
+
         if loocv:
-            # Use individual directories per validation participant only when doing LOOCV
-            if val_index is not None and len(val_index) > 0:
-                validation_participant_name = val_index[0]  # Single participant for LOOCV
-                self.save_path = os.path.join("results", validation_participant_name)
-            else:
-                validation_participant_name = "unknown"
-                self.save_path = os.path.join("results", "unknown")
+            # Set save path for LOOCV with participant-specific directory
+            validation_participant_name = val_index[0] if val_index else "unknown"
+            self.save_path = os.path.join("results", validation_participant_name)
         else:
             # Use a shared save path for standard cross-validation
             self.save_path = os.path.join("results", "current_run")
@@ -190,43 +208,39 @@ class FOVALTrainer:
 
         # Prepare data loaders
         self.train_loader, self.valid_loader, self.test_loader, input_size = self.dataset.get_data_loader(
-            train_index, val_index, test_index, self.batch_size)
+            train_index, val_index, test_index, self.batch_size
+        )
 
         self.target_scaler = self.dataset.target_scaler
         self.optimizer, self.scheduler = create_optimizer(
-            model=self.model, learning_rate=self.learning_rate,
-            weight_decay=self.weight_decay)
+            model=self.model,
+            learning_rate=self.learning_rate,
+            weight_decay=self.weight_decay,
+        )
 
-        with torch.profiler.profile(
-            schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
-            on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
-            record_shapes=True,
-            profile_memory=True,
-            with_stack=True
-        ) as profiler:
-            for epoch in range(num_epochs):
-                self.train_epoch(epoch)
-                if keyboard.is_pressed('q'):
-                    goToNextOptimStep = True
-                    isBreakLoop = True
-                    break  # Exit the outer loop to stop training completely for current subject
+        # Training loop with profiling and key press interruption
+        for epoch in range(num_epochs):
+            self.train_epoch(epoch)
 
-                if self.valid_loader:
-                    is_last_epoch = (epoch == num_epochs - 1)
-                    self.validate_epoch(epoch, is_last_epoch=is_last_epoch)
+            # Check for key press to stop training
+            if keyboard.is_pressed('q'):
+                print(f"User interrupt detected. Skipping to next fold.")
+                continue_train = False
+                break  # Exit the training loop early
 
-                self.scheduler.step()
+            if self.valid_loader:
+                is_last_epoch = (epoch == num_epochs - 1)
+                self.validate_epoch(epoch, is_last_epoch=is_last_epoch)
 
-                if self.check_early_stopping(epoch):
-                    break
-            profiler.step()  # Step profiler at the end of each epoch
+            self.scheduler.step()
 
-        # Save model state dictionary after training
-        # SPEED UP: COMMENT
-        # self.save_model_state(epoch)
+            # Early stopping check
+            if self.check_early_stopping(epoch):
+                break
+
         print("Training finished in epoch ", epoch)
         torch.cuda.empty_cache()
-        return self.best_metrics["mae"]
+        return self.best_metrics["mae"], continue_train
 
     def train_epoch(self, epoch):
         """

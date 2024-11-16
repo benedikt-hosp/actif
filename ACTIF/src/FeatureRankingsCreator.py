@@ -5,12 +5,14 @@ import torch
 import numpy as np
 import pandas as pd
 import shap
+from pandas._typing import F
 from shap import DeepExplainer
 import seaborn as sns
 import matplotlib.pyplot as plt
+from memory_profiler import memory_usage
 from tqdm import tqdm
 from captum.attr import IntegratedGradients, FeatureAblation, DeepLift
-from memory_profiler import memory_usage
+from torch.cuda.amp import autocast  # Ensure autocast is properly imported
 
 import torch
 from torch.cuda.amp import autocast
@@ -18,6 +20,7 @@ from torch.cuda.amp import autocast
 from models.foval.foval_preprocessor import input_features
 import json
 from models.foval.FOVAL import FOVAL
+from src.methods.DeepACTIF import DeepACTIF
 
 device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 torch.backends.cudnn.enabled = False
@@ -76,37 +79,13 @@ class FeatureRankingsCreator:
         self.memory_data = []
         self.methods = [
 
-            # 15 blöcke
-            #  6 done
+            # 14 blöcke
+            #
             # ABLATION ACTIF Aggregation Variants
             # 'ablation_MEAN',      # ok
             # 'ablation_MEANSTD',   # ok
             # 'ablation_INV',       # ok
             # 'ablation_PEN',       # ok
-
-            # ACTIF Variants
-            # 'actif_mean',                     # model-agnostic: ok
-            # 'actif_mean_stddev',              # ok
-            # 'actif_inverted_weighted_mean',   # ok
-            # 'actif_robust',                   # ok
-
-            # NISP V1 ACTIF Aggregation Variants
-            # 'nisp_v1_MEAN',  # ok
-            # 'nisp_v1_MEANSTD',  # ok
-            # 'nisp_v1_INV',  # ok
-            # 'nisp_v1_PEN',  # ok
-
-            # # NISP V2 ACTIF Aggregation Variants
-            # 'nisp_v2_MEAN',  # ok
-            # 'nisp_v2_MEANSTD',  # ok
-            # 'nisp_v2_INV',  # ok
-            # 'nisp_v2_PEN',  # ok
-
-            # NISP V3  ACTIF Aggregation Variants
-            # 'nisp_v3_MEAN',  # ok
-            # 'nisp_v3_MEANSTD',  # ok
-            # 'nisp_v3_INV',  # ok
-            # 'nisp_v3_PEN',  # ok
 
             # SHAP v1 ACTIF Aggregation Variants
             # 'shap_values_v1_MEAN',            # ok
@@ -121,52 +100,181 @@ class FeatureRankingsCreator:
             # 'shap_values_v2_PEN',
 
             # SHAP v3 ACTIF Aggregation Variants
-            'shap_values_v3_MEAN',
-            'shap_values_v3_MEANSTD',
-            'shap_values_v3_INV',
-            'shap_values_v3_PEN',
+            # 'shap_values_v3_MEAN',
+            # 'shap_values_v3_MEANSTD',
+            # 'shap_values_v3_INV',
+            # 'shap_values_v3_PEN',
 
             # Deeplift ZERO Baseline ACTIF Aggregation Variants
-            'deeplift_zero_MEAN',     # ok
-            'deeplift_zero_MEANSTD',  # ok
-            'deeplift_zero_INV',      # ok
-            'deeplift_zero_PEN',      # ok
-
-            # Deeplift Random Baseline ACTIF Aggregation Variants
-            'deeplift_random_MEAN',       # ok
-            'deeplift_random_MEANSTD',    # ok
-            'deeplift_random_INV',        # ok
-            'deeplift_random_PEN',        # ok
-
-            # Deeplift MEAN baseline ACTIF Aggregation Variants
-            'deeplift_mean_MEAN',         # ok
-            'deeplift_mean_MEANSTD',      # ok
-            'deeplift_mean_INV',          # ok
-            'deeplift_mean_PEN',          # ok
+            # 'deeplift_zero_MEAN',     # ok
+            # 'deeplift_zero_MEANSTD',  # ok
+            # 'deeplift_zero_INV',      # ok
+            # 'deeplift_zero_PEN',      # ok
+            #
+            # # Deeplift Random Baseline ACTIF Aggregation Variants
+            # 'deeplift_random_MEAN',       # ok
+            # 'deeplift_random_MEANSTD',    # ok
+            # 'deeplift_random_INV',        # ok
+            # 'deeplift_random_PEN',        # ok
+            #
+            # # Deeplift MEAN baseline ACTIF Aggregation Variants
+            # 'deeplift_mean_MEAN',         # ok
+            # 'deeplift_mean_MEANSTD',      # ok
+            # 'deeplift_mean_INV',          # ok
+            # 'deeplift_mean_PEN',          # ok
 
             # IntGrad V1 ACTIF Aggregation Variants
             # 'captum_intGrad_v1_MEAN',         # ok
-            # 'captum_intGrad_v1_MEANSTD',      # ok
-            # 'captum_intGrad_v1_INV',          # ok
-            # 'captum_intGrad_v1_PEN',          # ok
+            # 'captum_intGrad_v1_MEANSTD',  # ok
+            # 'captum_intGrad_v1_INV',  # ok
+            # 'captum_intGrad_v1_PEN',  # ok
 
             # Intgrad v2 ACTIF Aggregation Variants
-            'captum_intGrad_v2_MEAN',         # ok
-            'captum_intGrad_v2_MEANSTD',      # ok
-            'captum_intGrad_v2_INV',          # ok
-            'captum_intGrad_v2_PEN',          # ok
+            # 'captum_intGrad_v2_MEAN',         # ok
+            # 'captum_intGrad_v2_MEANSTD',      # ok
+            # 'captum_intGrad_v2_INV',          # ok
+            # 'captum_intGrad_v2_PEN',          # ok
 
             # Intgrad v3 ACTIF Aggregation Variants
-            'captum_intGrad_v3_MEAN',         # ok
-            'captum_intGrad_v3_MEANSTD',      # ok
-            'captum_intGrad_v3_INV',          # ok
-            'captum_intGrad_v3_PEN',          # ok
+            # 'captum_intGrad_v3_MEAN',         # ok
+            # 'captum_intGrad_v3_MEANSTD',      # ok
+            # 'captum_intGrad_v3_INV',          # ok
+            # 'captum_intGrad_v3_PEN',          # ok
 
             # SHUFFLE_Actif Aggregation Variants
             # 'shuffle_MEAN',  # ok
             # 'shuffle_MEANSTD',  # ok
             # 'shuffle_INV',  # ok
             # 'shuffle_PEN',  # ok
+
+            # Changed the hook names
+            # 'deepactif_v1_MEAN',
+            # 'deepactif_v1_MEANSTD',
+            # 'deepactif_v1_INV',
+            # 'deepactif_v1_PEN',
+
+            # 'deepactif_v2_MEAN',
+            # 'deepactif_v2_MEANSTD',
+            # 'deepactif_v2_INV',
+            # 'deepactif_v2_PEN',
+
+            # 'deepactif_v3_MEAN',
+            # 'deepactif_v3_MEANSTD',
+            # 'deepactif_v3_INV',
+            # 'deepactif_v3_PEN',
+
+            # 'deepactif_v4_MEAN',
+            # 'deepactif_v4_MEANSTD',
+            # 'deepactif_v4_INV',
+            # 'deepactif_v4_PEN',
+
+            # samples
+            # 'samples_deepactif_v1_MEAN',
+            # 'samples_deepactif_v1_MEANSTD',
+            # 'samples_deepactif_v1_INV',
+            # 'samples_deepactif_v1_PEN',
+            #
+            # 'samples_deepactif_v2_MEAN',
+            # 'samples_deepactif_v2_MEANSTD',
+            # 'samples_deepactif_v2_INV',
+            # 'samples_deepactif_v2_PEN',
+
+            # 'samples_deepactif_v3_MEAN',
+            # 'samples_deepactif_v3_MEANSTD',
+            # 'samples_deepactif_v3_INV',
+            # 'samples_deepactif_v3_PEN',
+            #
+            # 'samples_deepactif_v4_MEAN',
+            # 'samples_deepactif_v4_MEANSTD',
+            # 'samples_deepactif_v4_INV',
+            # 'samples_deepactif_v4_PEN',
+
+            # NISP V1 ACTIF Aggregation Variants
+            # 'np_deepactif_v1_MEAN',  # ok
+            # 'np_deepactif_v1_MEANSTD',  # ok
+            # 'np_deepactif_v1_INV',  # ok
+            # 'np_deepactif_v1_PEN',  # ok
+            #
+            # # NISP V2 ACTIF Aggregation Variants
+            # 'np_deepactif_v2_MEAN',  # ok
+            # 'np_deepactif_v2_MEANSTD',  # ok
+            # 'np_deepactif_v2_INV',  # ok
+            # 'np_deepactif_v2_PEN',  # ok
+
+            # NISP V3  ACTIF Aggregation Variants
+            # 'np_deepactif_v3_MEAN',  # ok
+            # 'np_deepactif_v3_MEANSTD',  # ok
+            # 'np_deepactif_v3_INV',  # ok
+            # 'np_deepactif_v3_PEN',  # ok
+
+            # 'np_deepactif_v4_MEAN',  # ok
+            # 'np_deepactif_v4_MEANSTD',  # ok
+            # 'np_deepactif_v4_INV',  # ok
+            # 'np_deepactif_v4_PEN',  # ok
+
+            # NISP old version  ACTIF Aggregation Variants
+            # 'old_deepactif_v1_MEAN',
+            # 'old_deepactif_v1_MEANSTD',
+            # 'old_deepactif_v1_INV',
+            # 'old_deepactif_v1_PEN',
+            #
+            # 'old_deepactif_v2_MEAN',
+            # 'old_deepactif_v2_MEANSTD',
+            # 'old_deepactif_v2_INV',
+            # 'old_deepactif_v2_PEN',
+
+            # 'old_deepactif_v3_MEAN',
+            # 'old_deepactif_v3_MEANSTD',
+            # 'old_deepactif_v3_INV',
+            # 'old_deepactif_v3_PEN',
+            #
+            # 'old_deepactif_v4_MEAN',
+            # 'old_deepactif_v4_MEANSTD',
+            # 'old_deepactif_v4_INV',
+            # 'old_deepactif_v4_PEN',
+
+            # NISP old version  ACTIF Aggregation Variants
+            # 'ur_deepactif_v1_MEAN',
+            # 'ur_deepactif_v1_MEANSTD',
+            # 'ur_deepactif_v1_INV',
+            # 'ur_deepactif_v1_PEN',
+            #
+            # 'ur_deepactif_v2_MEAN',
+            # 'ur_deepactif_v2_MEANSTD',
+            # 'ur_deepactif_v2_INV',
+            # 'ur_deepactif_v2_PEN',
+
+            # 'ur_deepactif_v3_MEAN',
+            # 'ur_deepactif_v3_MEANSTD',
+            # 'ur_deepactif_v3_INV',
+            # 'ur_deepactif_v3_PEN',
+            #
+            # 'ur_deepactif_v4_MEAN',
+            # 'ur_deepactif_v4_MEANSTD',
+            # 'ur_deepactif_v4_INV',
+            # 'ur_deepactif_v4_PEN',
+
+            # NISP old version  ACTIF Aggregation Variants
+            # 'original_deepactif_v1_MEAN',
+            # 'original_deepactif_v1_MEANSTD',
+            # 'original_deepactif_v1_INV',
+            # 'original_deepactif_v1_PEN',
+            #
+            # 'original_deepactif_v2_MEAN',
+            # 'original_deepactif_v2_MEANSTD',
+            # 'original_deepactif_v2_INV',
+            # 'original_deepactif_v2_PEN',
+
+            # 'original_deepactif_v3_MEAN',
+            # 'original_deepactif_v3_MEANSTD',
+            'original_deepactif_v3_INV',
+            # 'original_deepactif_v3_PEN',
+            #
+            # 'original_deepactif_v4_MEAN',
+            # 'original_deepactif_v4_MEANSTD',
+            'original_deepactif_v4_INV',
+            # 'original_deepactif_v4_PEN',
+
         ]
 
     def load_model(self, modelName):
@@ -305,21 +413,228 @@ class FeatureRankingsCreator:
             'deeplift_mean_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='mean',
                                                                actif_variant='robust'),
 
+            'deepactif_v1_MEAN': lambda: self.compute_deepactif(valid_loader, hook_location='input_linear',
+                                                                actif_variant='mean'),
+            'deepactif_v1_MEANSTD': lambda: self.compute_deepactif(valid_loader, hook_location='input_linear',
+                                                                   actif_variant='meanstd'),
+            'deepactif_v1_INV': lambda: self.compute_deepactif(valid_loader, hook_location='input_linear',
+                                                               actif_variant='inv'),
+            'deepactif_v1_PEN': lambda: self.compute_deepactif(valid_loader, hook_location='input_linear',
+                                                               actif_variant='robust'),
+
+            'deepactif_v2_MEAN': lambda: self.compute_deepactif(valid_loader, hook_location='lstm',
+                                                                actif_variant='mean'),
+            'deepactif_v2_MEANSTD': lambda: self.compute_deepactif(valid_loader, hook_location='lstm',
+                                                                   actif_variant='meanstd'),
+            'deepactif_v2_INV': lambda: self.compute_deepactif(valid_loader, hook_location='lstm', actif_variant='inv'),
+            'deepactif_v2_PEN': lambda: self.compute_deepactif(valid_loader, hook_location='lstm',
+                                                               actif_variant='robust'),
+
+            'deepactif_v3_MEAN': lambda: self.compute_deepactif(valid_loader, hook_location='fc1',
+                                                                actif_variant='mean'),
+            'deepactif_v3_MEANSTD': lambda: self.compute_deepactif(valid_loader, hook_location='fc1',
+                                                                   actif_variant='meanstd'),
+            'deepactif_v3_INV': lambda: self.compute_deepactif(valid_loader, hook_location='fc1', actif_variant='inv'),
+            'deepactif_v3_PEN': lambda: self.compute_deepactif(valid_loader, hook_location='fc1',
+                                                               actif_variant='robust'),
+
+            'deepactif_v4_MEAN': lambda: self.compute_deepactif(valid_loader, hook_location='fc5',
+                                                                actif_variant='mean'),
+            'deepactif_v4_MEANSTD': lambda: self.compute_deepactif(valid_loader, hook_location='fc5',
+                                                                   actif_variant='meanstd'),
+            'deepactif_v4_INV': lambda: self.compute_deepactif(valid_loader, hook_location='fc5', actif_variant='inv'),
+            'deepactif_v4_PEN': lambda: self.compute_deepactif(valid_loader, hook_location='fc5',
+                                                               actif_variant='robust'),
+
             # NISP Methods (v1, v2, v3)
-            'nisp_v1_MEAN': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='mean'),
-            'nisp_v1_MEANSTD': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='meanstd'),
-            'nisp_v1_INV': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='inv'),
-            'nisp_v1_PEN': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='robust'),
+            'np_deepactif_v1_MEAN': lambda: self.compute_np_deepactif(valid_loader, hook_location='input_linear',
+                                                                      actif_variant='mean'),
+            'np_deepactif_v1_MEANSTD': lambda: self.compute_np_deepactif(valid_loader, hook_location='input_linear',
+                                                                         actif_variant='meanstd'),
+            'np_deepactif_v1_INV': lambda: self.compute_np_deepactif(valid_loader, hook_location='input_linear',
+                                                                     actif_variant='inv'),
+            'np_deepactif_v1_PEN': lambda: self.compute_np_deepactif(valid_loader, hook_location='input_linear',
+                                                                     actif_variant='robust'),
 
-            'nisp_v2_MEAN': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='mean'),
-            'nisp_v2_MEANSTD': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='meanstd'),
-            'nisp_v2_INV': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='inv'),
-            'nisp_v2_PEN': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='robust'),
+            'np_deepactif_v2_MEAN': lambda: self.compute_np_deepactif(valid_loader, hook_location='lstm',
+                                                                      actif_variant='mean'),
+            'np_deepactif_v2_MEANSTD': lambda: self.compute_np_deepactif(valid_loader, hook_location='lstm',
+                                                                         actif_variant='meanstd'),
+            'np_deepactif_v2_INV': lambda: self.compute_np_deepactif(valid_loader, hook_location='lstm',
+                                                                     actif_variant='inv'),
+            'np_deepactif_v2_PEN': lambda: self.compute_np_deepactif(valid_loader, hook_location='lstm',
+                                                                     actif_variant='robust'),
 
-            'nisp_v3_MEAN': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='mean'),
-            'nisp_v3_MEANSTD': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='meanstd'),
-            'nisp_v3_INV': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='inv'),
-            'nisp_v3_PEN': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='robust'),
+            'np_deepactif_v3_MEAN': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc1',
+                                                                      actif_variant='mean'),
+            'np_deepactif_v3_MEANSTD': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc1',
+                                                                         actif_variant='meanstd'),
+            'np_deepactif_v3_INV': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc1',
+                                                                     actif_variant='inv'),
+            'np_deepactif_v3_PEN': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc1',
+                                                                     actif_variant='robust'),
+
+            'np_deepactif_v4_MEAN': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc5',
+                                                                      actif_variant='mean'),
+            'np_deepactif_v4_MEANSTD': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc5',
+                                                                         actif_variant='meanstd'),
+            'np_deepactif_v4_INV': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc5',
+                                                                     actif_variant='inv'),
+            'np_deepactif_v4_PEN': lambda: self.compute_np_deepactif(valid_loader, hook_location='fc5',
+                                                                     actif_variant='robust'),
+
+            'samples_deepactif_v1_MEAN': lambda: self.compute_samples_deepactif(valid_loader,
+                                                                                hook_location='input_linear',
+                                                                                actif_variant='mean'),
+            'samples_deepactif_v1_MEANSTD': lambda: self.compute_samples_deepactif(valid_loader,
+                                                                                   hook_location='input_linear',
+                                                                                   actif_variant='meanstd'),
+            'samples_deepactif_v1_INV': lambda: self.compute_samples_deepactif(valid_loader,
+                                                                               hook_location='input_linear',
+                                                                               actif_variant='inv'),
+            'samples_deepactif_v1_PEN': lambda: self.compute_samples_deepactif(valid_loader,
+                                                                               hook_location='input_linear',
+                                                                               actif_variant='robust'),
+
+            'samples_deepactif_v2_MEAN': lambda: self.compute_samples_deepactif(valid_loader, hook_location='lstm',
+                                                                                actif_variant='mean'),
+            'samples_deepactif_v2_MEANSTD': lambda: self.compute_samples_deepactif(valid_loader, hook_location='lstm',
+                                                                                   actif_variant='meanstd'),
+            'samples_deepactif_v2_INV': lambda: self.compute_samples_deepactif(valid_loader, hook_location='lstm',
+                                                                               actif_variant='inv'),
+            'samples_deepactif_v2_PEN': lambda: self.compute_samples_deepactif(valid_loader, hook_location='lstm',
+                                                                               actif_variant='robust'),
+
+            'samples_deepactif_v3_MEAN': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc1',
+                                                                                actif_variant='mean'),
+            'samples_deepactif_v3_MEANSTD': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc1',
+                                                                                   actif_variant='meanstd'),
+            'samples_deepactif_v3_INV': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc1',
+                                                                               actif_variant='inv'),
+            'samples_deepactif_v3_PEN': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc1',
+                                                                               actif_variant='robust'),
+
+            'samples_deepactif_v4_MEAN': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc5',
+                                                                                actif_variant='mean'),
+            'samples_deepactif_v4_MEANSTD': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc5',
+                                                                                   actif_variant='meanstd'),
+            'samples_deepactif_v4_INV': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc5',
+                                                                               actif_variant='inv'),
+            'samples_deepactif_v4_PEN': lambda: self.compute_samples_deepactif(valid_loader, hook_location='fc5',
+                                                                               actif_variant='robust'),
+
+            'old_deepactif_v1_MEAN': lambda: self.compute_old_deepactif(valid_loader, hook_location='input_linear',
+                                                                        actif_variant='mean'),
+            'old_deepactif_v1_MEANSTD': lambda: self.compute_old_deepactif(valid_loader, hook_location='input_linear',
+                                                                           actif_variant='meanstd'),
+            'old_deepactif_v1_INV': lambda: self.compute_old_deepactif(valid_loader, hook_location='input_linear',
+                                                                       actif_variant='inv'),
+            'old_deepactif_v1_PEN': lambda: self.compute_old_deepactif(valid_loader, hook_location='input_linear',
+                                                                       actif_variant='robust'),
+
+            'old_deepactif_v2_MEAN': lambda: self.compute_old_deepactif(valid_loader, hook_location='lstm',
+                                                                        actif_variant='mean'),
+            'old_v2_MEANSTD': lambda: self.compute_old_deepactif(valid_loader, hook_location='lstm',
+                                                                 actif_variant='meanstd'),
+            'old_deepactif_v2_INV': lambda: self.compute_old_deepactif(valid_loader, hook_location='lstm',
+                                                                       actif_variant='inv'),
+            'old_deepactif_v2_PEN': lambda: self.compute_old_deepactif(valid_loader, hook_location='lstm',
+                                                                       actif_variant='robust'),
+
+            'old_deepactif_v3_MEAN': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc1',
+                                                                        actif_variant='mean'),
+            'old_deepactif_v3_MEANSTD': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc1',
+                                                                           actif_variant='meanstd'),
+            'old_deepactif_v3_INV': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc1',
+                                                                       actif_variant='inv'),
+            'old_deepactif_v3_PEN': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc1',
+                                                                       actif_variant='robust'),
+
+            'old_deepactif_v4_MEAN': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc5',
+                                                                        actif_variant='mean'),
+            'old_deepactif_v4_MEANSTD': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc5',
+                                                                           actif_variant='meanstd'),
+            'old_deepactif_v4_INV': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc5',
+                                                                       actif_variant='inv'),
+            'old_deepactif_v4_PEN': lambda: self.compute_old_deepactif(valid_loader, hook_location='fc5',
+                                                                       actif_variant='robust'),
+
+            'ur_deepactif_v1_MEAN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='input_linear',
+                                                                      actif_variant='mean'),
+            'ur_deepactif_v1_MEANSTD': lambda: self.compute_ur_deepactif(valid_loader, hook_location='input_linear',
+                                                                         actif_variant='meanstd'),
+            'ur_deepactif_v1_INV': lambda: self.compute_ur_deepactif(valid_loader, hook_location='input_linear',
+                                                                     actif_variant='inv'),
+            'ur_deepactif_v1_PEN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='input_linear',
+                                                                     actif_variant='robust'),
+
+            'ur_deepactif_v2_MEAN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='lstm',
+                                                                      actif_variant='mean'),
+            'ur_deepactif_v2_MEANSTD': lambda: self.compute_ur_deepactif(valid_loader, hook_location='lstm',
+                                                                         actif_variant='meanstd'),
+            'ur_deepactif_v2_INV': lambda: self.compute_ur_deepactif(valid_loader, hook_location='lstm',
+                                                                     actif_variant='inv'),
+            'ur_deepactif_v2_PEN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='lstm',
+                                                                     actif_variant='robust'),
+
+            'ur_deepactif_v3_MEAN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc1',
+                                                                      actif_variant='mean'),
+            'ur_deepactif_v3_MEANSTD': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc1',
+                                                                         actif_variant='meanstd'),
+            'ur_deepactif_v3_INV': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc1',
+                                                                     actif_variant='inv'),
+            'ur_deepactif_v3_PEN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc1',
+                                                                     actif_variant='robust'),
+
+            'ur_deepactif_v4_MEAN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc5',
+                                                                      actif_variant='mean'),
+            'ur_deepactif_v4_MEANSTD': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc5',
+                                                                         actif_variant='meanstd'),
+            'ur_deepactif_v4_INV': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc5',
+                                                                     actif_variant='inv'),
+            'ur_deepactif_v_PEN': lambda: self.compute_ur_deepactif(valid_loader, hook_location='fc5',
+                                                                    actif_variant='robust'),
+
+            'original_deepactif_v1_MEAN': lambda: self.compute_original_deepactif(valid_loader,
+                                                                                  hook_location='input_linear',
+                                                                                  actif_variant='mean'),
+            'original_deepactif_v1_MEANSTD': lambda: self.compute_original_deepactif(valid_loader,
+                                                                                     hook_location='input_linear',
+                                                                                     actif_variant='meanstd'),
+            'original_deepactif_v1_INV': lambda: self.compute_original_deepactif(valid_loader,
+                                                                                 hook_location='input_linear',
+                                                                                 actif_variant='inv'),
+            'original_deepactif_v1_PEN': lambda: self.compute_original_deepactif(valid_loader,
+                                                                                 hook_location='input_linear',
+                                                                                 actif_variant='robust'),
+
+            'original_deepactif_v2_MEAN': lambda: self.compute_original_deepactif(valid_loader, hook_location='lstm',
+                                                                                  actif_variant='mean'),
+            'original_deepactif_v2_MEANSTD': lambda: self.compute_original_deepactif(valid_loader, hook_location='lstm',
+                                                                                     actif_variant='meanstd'),
+            'original_deepactif_v2_INV': lambda: self.compute_original_deepactif(valid_loader, hook_location='lstm',
+                                                                                 actif_variant='inv'),
+            'original_deepactif_v2_PEN': lambda: self.compute_original_deepactif(valid_loader, hook_location='lstm',
+                                                                                 actif_variant='robust'),
+
+            'original_deepactif_v3_MEAN': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc1',
+                                                                                  actif_variant='mean'),
+            'original_deepactif_v3_MEANSTD': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc1',
+                                                                                     actif_variant='meanstd'),
+            'original_deepactif_v3_INV': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc1',
+                                                                                 actif_variant='inv'),
+            'original_deepactif_v3_PEN': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc1',
+                                                                                 actif_variant='robust'),
+
+            'original_deepactif_v4_MEAN': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc5',
+                                                                                  actif_variant='mean'),
+            'original_deepactif_v4_MEANSTD': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc5',
+                                                                                     actif_variant='meanstd'),
+            'original_deepactif_v4_INV': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc5',
+                                                                                 actif_variant='inv'),
+            'original_deepactif_v4_PEN': lambda: self.compute_original_deepactif(valid_loader, hook_location='fc5',
+                                                                                 actif_variant='robust'),
+
         }
 
         return method_functions.get(method, None)
@@ -416,7 +731,6 @@ class FeatureRankingsCreator:
         weighted_importance = mean_activation * std_activation  # Multiply mean by stddev to get importance
         return weighted_importance
 
-
     def calculate_actif_inverted_weighted_mean(self, activation):
         """
         Calculate the importance by weighting high mean activations and low variability (stddev).
@@ -469,10 +783,6 @@ class FeatureRankingsCreator:
     =======================================================================================
     # Established Methods
     =======================================================================================
-    '''
-
-    '''
-        Ablation
     '''
 
     def ablation(self, valid_loader, actif_variant='mean'):
@@ -541,10 +851,6 @@ class FeatureRankingsCreator:
         results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
                    range(len(self.selected_features))]
         return results
-
-    '''
-        Deep Lift
-    '''
 
     def compute_deeplift(self, valid_loader, baseline_type='zero', actif_variant='mean'):
         """
@@ -619,29 +925,109 @@ class FeatureRankingsCreator:
                        feature_importance.items()]
 
             return results
+    #
+    # def compute_samples_deepactif(self, valid_loader, hook_location='input_linear', actif_variant='mean'):
+    #     """
+    #     Compute per-sample DeepACTIF importance scores.
+    #     Args:
+    #         valid_loader: DataLoader containing validation or test data.
+    #         hook_location: Layer to hook into for activations ('input_linear', 'lstm', 'fc1', 'fc5').
+    #         actif_variant: Aggregation method for importance scores ('mean', 'meanstd', 'inv', 'robust').
+    #     """
+    #     activations = []
+    #     self.load_model(self.currentModelName)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     # Register hooks at different stages based on the version
+    #     def save_activation(name):
+    #         def hook(module, input, output):
+    #             if isinstance(output, tuple):
+    #                 output = output[0]  # For LSTM, handle tuple outputs
+    #             activations.append(output.detach())
+    #
+    #         return hook
+    #
+    #     for name, layer in self.currentModel.named_modules():
+    #         if name == hook_location:
+    #             layer.register_forward_hook(save_activation(name))
+    #             break
+    #
+    #     # Initialize importance scores
+    #     importance_scores = []
+    #
+    #     # Iterate over validation loader
+    #     for inputs, _ in valid_loader:
+    #         inputs = inputs.to(device)
+    #         with torch.no_grad():
+    #             outputs = self.currentModel(inputs)  # Trigger hooks
+    #
+    #             # Iterate over samples in the batch
+    #             for i in range(inputs.size(0)):
+    #                 single_output = outputs[i]  # Output for i-th sample
+    #
+    #                 # Time-step reduction
+    #                 if single_output.dim() == 3:  # [timesteps, features]
+    #                     output_importance = single_output.mean(dim=0)
+    #                 elif single_output.dim() == 2:  # [features]
+    #                     output_importance = single_output
+    #                 else:
+    #                     raise ValueError(f"Unexpected output shape: {single_output.shape}")
+    #
+    #                 sample_importance = torch.zeros(len(self.selected_features), device=device)
+    #
+    #                 # Compute layer-wise importance per sample
+    #                 for activation in activations:
+    #                     single_activation = activation[i]
+    #
+    #                     if single_activation.dim() == 3:
+    #                         layer_importance = single_activation.sum(dim=1).mean(dim=0)
+    #                     elif single_activation.dim() == 2:
+    #                         layer_importance = single_activation.mean(dim=0)
+    #                     elif single_activation.dim() == 1:
+    #                         layer_importance = single_activation
+    #                     else:
+    #                         print(f"Unexpected shape {single_activation.shape}. Setting to zeros.")
+    #                         layer_importance = torch.zeros(len(self.selected_features), device=device)
+    #
+    #                     # Accumulate per-sample importance
+    #                     sample_importance += layer_importance * output_importance.mean()
+    #
+    #                 importance_scores.append(sample_importance.cpu().numpy())
+    #
+    #         activations.clear()  # Clear activations for the next batch
+    #
+    #     # Convert to numpy array
+    #     all_attributions = np.array(importance_scores)
+    #     print(f"Shape of all_attributions: {all_attributions.shape}")
+    #
+    #     # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
+    #     if actif_variant == 'mean':
+    #         importance = self.calculate_actif_mean(all_attributions)
+    #     elif actif_variant == 'meanstd':
+    #         importance = self.calculate_actif_meanstddev(all_attributions)
+    #     elif actif_variant == 'inv':
+    #         importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+    #     elif actif_variant == 'robust':
+    #         importance = self.calculate_actif_robust(all_attributions)
+    #     else:
+    #         raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+    #
+    #     # Ensure that the importance variable is a list or array with the same length as the number of features
+    #     if not isinstance(importance, np.ndarray):
+    #         importance = np.array(importance)
+    #
+    #     if importance.shape[0] != len(self.selected_features):
+    #         raise ValueError(
+    #             f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+    #         )
+    #
+    #     # Prepare the results with the aggregated importance
+    #     results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+    #                range(len(self.selected_features))]
+    #
+    #     return results
 
-    '''
-        NISP
-    '''
-
-    def compute_nisp(self, valid_loader, version='v1', actif_variant='mean'):
-        """
-        Perform NISP with different sensitivity versions:
-        Version 1: Use activations before LSTM
-        Version 2: Use activations after LSTM
-        Version 3: Use activations just before the output layer
-        """
-        if version == 'v1':
-            return self.compute_nisp_configured(valid_loader, hook_location='before_lstm', actif_variant=actif_variant)
-        elif version == 'v2':
-            return self.compute_nisp_configured(valid_loader, hook_location='after_lstm', actif_variant=actif_variant)
-        elif version == 'v3':
-            return self.compute_nisp_configured(valid_loader, hook_location='before_output',
-                                                actif_variant=actif_variant)
-        else:
-            raise ValueError(f"Unknown version type: {version}")
-
-    def compute_nisp_configured(self, valid_loader, hook_location='before_lstm', actif_variant='mean'):
+    def compute_samples_deepactif(self, valid_loader, hook_location='input_linear', actif_variant='mean'):
         """
         NISP calculation with different layer hooks based on version.
         Args:
@@ -661,20 +1047,33 @@ class FeatureRankingsCreator:
 
             return hook
 
+        # for name, layer in self.currentModel.named_modules():
+        #     # if isinstance(layer, torch.nn.Linear):  # Assuming the output is from a dense/linear layer
+        #     if name == hook_location:
+        #         layer.register_forward_hook(save_activation(name))
+        #         break
+
         # Set hooks based on the chosen version
-        if hook_location == 'before_lstm':
+        if hook_location == 'input_linear':
             # Hook into the input before LSTM (you may need to adjust depending on your model architecture)
             for name, layer in self.currentModel.named_modules():
                 if isinstance(layer, torch.nn.LSTM):  # Assuming LSTM is the first main layer
                     layer.register_forward_hook(save_activation(name))  # Use forward hook instead of forward pre-hook
                     break
-        elif hook_location == 'after_lstm':
+        elif hook_location == 'lstm':
             # Hook into the output of the LSTM layer
             for name, layer in self.currentModel.named_modules():
                 if isinstance(layer, torch.nn.LSTM):
                     layer.register_forward_hook(save_activation(name))
                     break
-        elif hook_location == 'before_output':
+        elif hook_location == 'fc1':
+            # Hook into the layer just before the final output layer (often fully connected)
+            for name, layer in self.currentModel.named_modules():
+                # if isinstance(layer, torch.nn.Linear):  # Assuming the output is from a dense/linear layer
+                if name == hook_location:
+                    layer.register_forward_hook(save_activation(name))
+                    break
+        elif hook_location == 'fc5':
             # Hook into the layer just before the final output layer (often fully connected)
             for name, layer in self.currentModel.named_modules():
                 if isinstance(layer, torch.nn.Linear):  # Assuming the output is from a dense/linear layer
@@ -684,43 +1083,62 @@ class FeatureRankingsCreator:
             raise ValueError(f"Unknown hook location: {hook_location}")
 
         # Initialize importance scores
-        importance_scores = torch.zeros(len(self.selected_features), device=device)
+        # Initialize importance scores
+        # Initialize importance scores
+        importance_scores = []  # List to store individual importance scores per sample
 
         # Iterate over the validation loader and compute importance
-        total_batches = 0
+        total_samples = 0
         for inputs, _ in valid_loader:
             inputs = inputs.to(device)
 
             with torch.no_grad():
                 outputs = self.currentModel(inputs)
 
-                # Compute output importance based on outputs
-                if outputs.dim() == 3:
-                    output_importance = outputs.mean(dim=1)  # Mean over time steps
-                elif outputs.dim() == 2:
-                    output_importance = outputs  # Already the correct shape
-                else:
-                    raise ValueError(f"Unexpected output shape: {outputs.shape}")
+                # Process each sample in the batch individually
+                for i in range(inputs.size(0)):  # Loop over samples in the batch
+                    single_output = outputs[i]  # Get output for the i-th sample
 
-                reduced_output_importance = output_importance[:, :len(self.selected_features)]
+                    # Compute output importance based on outputs
+                    if outputs.dim() == 3:
+                        output_importance = single_output.mean(dim=1)  # Mean over time steps
+                    elif outputs.dim() == 2:
+                        output_importance = single_output  # Already the correct shape
+                    else:
+                        raise ValueError(f"Unexpected output shape: {single_output.shape}")
 
-                # Use the activations captured from the hooked layers
-                for activation in activations:
-                    if activation.dim() == 3:
-                        layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
-                    elif activation.dim() == 2:
-                        layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
+                    reduced_output_importance = output_importance[:len(self.selected_features)]
 
-                    # Accumulate importance scores based on activation and reduced output importance
-                    importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
+                    # Use the activations captured from the hooked layers for each sample
+                    sample_importance = torch.zeros(len(self.selected_features),
+                                                    device=device)  # Importance for this sample
+                    # Process each sample's activation and assign layer_importance appropriately
+                    for activation in activations:
+                        single_activation = activation[i]  # Activation for the i-th sample
 
-            # Collect all attributions for later ACTIF aggregation
-            all_attributions.append(importance_scores.cpu().numpy())
+                        # Determine layer_importance based on the dimensions of single_activation
+                        if single_activation.dim() == 3:
+                            layer_importance = single_activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
+                        elif single_activation.dim() == 2:
+                            layer_importance = single_activation.mean(dim=0)[:len(self.selected_features)]
+                        elif single_activation.dim() == 1:
+                            layer_importance = single_activation[:len(self.selected_features)]
+                        else:
+                            # Handle unexpected shapes by setting layer_importance to a default value or raising an error
+                            print(
+                                f"Warning: Unexpected shape {single_activation.shape}. Setting layer_importance to zeros.")
+                            layer_importance = torch.zeros(len(self.selected_features), device=device)
 
-            total_batches += 1
+                        # Now that layer_importance is always defined, accumulate importance scores
+                        sample_importance += layer_importance * reduced_output_importance.mean(dim=0)
+
+                    # Append the sample's importance score to the list
+                    importance_scores.append(sample_importance.cpu().numpy())
+
             activations.clear()  # Clear activations for the next batch
 
-        all_attributions = np.array(all_attributions)
+        # Convert the list of importance scores to a numpy array for ACTIF aggregation
+        all_attributions = np.array(importance_scores)
 
         print(f"Shape of all_attributions: {all_attributions.shape}")
 
@@ -751,12 +1169,1149 @@ class FeatureRankingsCreator:
 
         return results
 
+    def compute_deepactif(self, valid_loader, hook_location='input_linear', actif_variant='mean'):
+        """
+        Perform NISP with different sensitivity versions:
+        Version 1: Use activations before LSTM
+        Version 2: Use activations after LSTM
+        Version 3: Use activations just before the output layer
+        """
+        # Assuming you have your model, selected_features list, and dataloader ready
+        self.load_model(self.currentModelName)
+        print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+        # Example setup
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        # Instantiate DeepACTIF
+        deepactif = DeepACTIF(model=self.currentModel, selected_features=self.selected_features, device=device, target_layer=hook_location)
+
+        all_attributions = deepactif.compute_deepactif(valid_loader)
+
+        # Aggregate based on actif_variant
+        if actif_variant == 'mean':
+            importance = self.calculate_actif_mean(all_attributions)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(all_attributions)
+        elif actif_variant == 'inv':
+            importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+        elif actif_variant == 'robust':
+            importance = self.calculate_actif_robust(all_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Check if importance array is valid
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)
+        if importance.shape[0] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected.")
+
+        # Prepare the results with aggregated importance
+        results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+                   range(len(self.selected_features))]
+        return results
+
+    def compute_np_deepactif(self, valid_loader, hook_location='lstm', actif_variant='mean'):
+        """
+        NISP calculation with different layer hooks based on version.
+        Args:
+            hook_location: Where to hook into the model ('input_linear', 'lstm', 'fc1', 'fc5').
+        """
+        activations = []
+        importance_scores = []  # List to store individual importance scores per sample
+        all_attributions = []
+
+        self.load_model(self.currentModelName)
+        print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+
+        # Define a hook function for activation capture
+        def save_activation(name):
+            def hook(module, input, output):
+                if isinstance(output, tuple):  # Handle LSTM tuple outputs
+                    output = output[0]
+                activations.append(output.detach())
+
+            return hook
+
+        # Set hooks based on the chosen location
+        if hook_location == 'input_linear':
+            for name, layer in self.currentModel.named_modules():
+                if isinstance(layer, torch.nn.LSTM):
+                    layer.register_forward_hook(save_activation(name))
+                    break
+        elif hook_location == 'lstm':
+            for name, layer in self.currentModel.named_modules():
+                if isinstance(layer, torch.nn.LSTM):
+                    layer.register_forward_hook(save_activation(name))
+                    break
+        elif hook_location == 'fc1':
+            for name, layer in self.currentModel.named_modules():
+                if name == hook_location:
+                    layer.register_forward_hook(save_activation(name))
+                    break
+        elif hook_location == 'fc5':
+            for name, layer in self.currentModel.named_modules():
+                if isinstance(layer, torch.nn.Linear):
+                    layer.register_forward_hook(save_activation(name))
+                    break
+        else:
+            raise ValueError(f"Unknown hook location: {hook_location}")
+
+        # Process each batch in the validation loader
+        for inputs, _ in valid_loader:
+            inputs = inputs.to(device)
+
+            with torch.no_grad():
+                outputs = self.currentModel(inputs)
+
+                # Process each sample in the batch individually
+                for i in range(inputs.size(0)):
+                    single_output = outputs[i]
+
+                    # Determine importance based on output shape
+                    if outputs.dim() == 3:
+                        output_importance = single_output.mean(dim=0)
+                    elif outputs.dim() == 2:
+                        output_importance = single_output
+                    else:
+                        raise ValueError(f"Unexpected output shape: {single_output.shape}")
+
+                    reduced_output_importance = output_importance[:len(self.selected_features)]
+
+                    # Use captured activations for each sample
+                    sample_importance = torch.zeros(len(self.selected_features), device=device)
+                    for activation in activations:
+                        single_activation = activation[i]
+
+                        # Handle activation dimensionality and interpolate if necessary
+                        if single_activation.dim() == 3:
+                            layer_importance = single_activation.sum(dim=1).mean(dim=0)[
+                                               :len(self.selected_features)]
+                        elif single_activation.dim() == 2:
+                            layer_importance = single_activation.mean(dim=0)[:len(self.selected_features)]
+                        elif single_activation.dim() == 1:
+                            layer_importance = single_activation[:len(self.selected_features)]
+                        else:
+                            print(
+                                f"Warning: Unexpected shape {single_activation.shape}. Setting layer_importance to zeros.")
+                            layer_importance = torch.zeros(len(self.selected_features), device=device)
+
+                        # Interpolate if layer output size doesn’t match selected_features
+                        if layer_importance.shape[0] != len(self.selected_features):
+                            layer_importance = F.interpolate(
+                                layer_importance.unsqueeze(0).unsqueeze(1),
+                                size=len(self.selected_features),
+                                mode="linear",
+                                align_corners=True
+                            ).squeeze(0).squeeze(0)
+
+                        # Accumulate importance scores
+                        sample_importance += layer_importance * reduced_output_importance.mean(dim=0)
+
+                    # Store importance scores for each sample
+                    importance_scores.append(sample_importance.cpu().numpy())
+
+            activations.clear()  # Clear activations for the next batch
+
+        # Convert importance scores to numpy array for ACTIF aggregation
+        all_attributions = np.array(importance_scores)
+        print(f"Shape of all_attributions: {all_attributions.shape}")
+
+        # Aggregate based on actif_variant
+        if actif_variant == 'mean':
+            importance = self.calculate_actif_mean(all_attributions)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(all_attributions)
+        elif actif_variant == 'inv':
+            importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+        elif actif_variant == 'robust':
+            importance = self.calculate_actif_robust(all_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Check if importance array is valid
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)
+        if importance.shape[0] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected.")
+
+        # Prepare the results with aggregated importance
+        results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+                   range(len(self.selected_features))]
+        return results
+
+    # def compute_np_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+    #     activations = []
+    #     all_attributions = []
+    #     self.load_model(self.currentModelName)
+    #     self.currentModel.to(device)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     # Hook function to save activations
+    #     def save_activation(name):
+    #         def hook(module, input, output):
+    #             if isinstance(output, tuple):
+    #                 output = output[0]
+    #             activations.append(output.detach())
+    #
+    #         return hook
+    #
+    #     # Set hooks based on the chosen location
+    #     for name, layer in self.currentModel.named_modules():
+    #         if name == hook_location or (isinstance(layer, torch.nn.LSTM) and hook_location == 'input_seq'):
+    #             layer.register_forward_hook(save_activation(name))
+    #             break
+    #         elif isinstance(layer, torch.nn.Linear) and hook_location == 'fc5':
+    #             layer.register_forward_hook(save_activation(name))
+    #             break
+    #
+    #     # Initialize importance scores
+    #     importance_scores = []
+    #
+    #     # Iterate over the validation loader
+    #     for inputs, _ in valid_loader:
+    #         inputs = inputs.to(device)
+    #
+    #         with torch.no_grad():
+    #             outputs = self.currentModel(inputs)
+    #
+    #             for i in range(inputs.size(0)):
+    #                 single_output = outputs[i]
+    #
+    #                 # Compute output importance
+    #                 if single_output.dim() == 1:
+    #                     output_importance = single_output.unsqueeze(0)
+    #                 else:
+    #                     raise ValueError(f"Unexpected output shape: {single_output.shape}")
+    #
+    #                 # Resize output importance to match feature size
+    #                 if output_importance.size(-1) != len(self.selected_features):
+    #                     output_importance_resized = torch.nn.functional.interpolate(
+    #                         output_importance.unsqueeze(0).unsqueeze(1),  # Add batch and channel dimensions
+    #                         size=(len(self.selected_features),),  # Resize to match selected_features
+    #                         mode='linear',
+    #                         align_corners=True
+    #                     ).squeeze(0).squeeze(0)  # Remove added dimensions
+    #                 else:
+    #                     output_importance_resized = output_importance
+    #
+    #                 sample_importance = torch.zeros(len(self.selected_features), device=device)
+    #
+    #                 for activation in activations:
+    #                     single_activation = activation[i]
+    #                     if single_activation.dim() == 3:
+    #                         layer_importance = single_activation.sum(dim=0).mean(dim=0)
+    #                     elif single_activation.dim() == 2:
+    #                         layer_importance = single_activation.mean(dim=0)
+    #                     elif single_activation.dim() == 1:
+    #                         layer_importance = single_activation
+    #                     else:
+    #                         print(f"Unexpected shape {single_activation.shape}. Setting layer_importance to zeros.")
+    #                         layer_importance = torch.zeros(len(self.selected_features), device=self.device)
+    #
+    #                     sample_importance += layer_importance * output_importance_resized.mean()
+    #
+    #                 importance_scores.append(sample_importance.cpu().numpy())
+    #
+    #         activations.clear()
+    #
+    #     all_attributions = np.array(importance_scores)
+    #     print(f"Shape of all_attributions: {all_attributions.shape}")
+    #
+    #     # Apply ACTIF variant for aggregation
+    #     if actif_variant == 'mean':
+    #         importance = self.calculate_actif_mean(all_attributions)
+    #     elif actif_variant == 'meanstd':
+    #         importance = self.calculate_actif_meanstddev(all_attributions)
+    #     elif actif_variant == 'inv':
+    #         importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+    #     elif actif_variant == 'robust':
+    #         importance = self.calculate_actif_robust(all_attributions)
+    #     else:
+    #         raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+    #
+    #     if not isinstance(importance, np.ndarray):
+    #         importance = np.array(importance)
+    #
+    #     if importance.shape[0] != len(self.selected_features):
+    #         raise ValueError(
+    #             f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+    #         )
+    #
+    #     results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+    #                range(len(self.selected_features))]
+    #     return results
+
+    #
+    # def compute_np_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+    #     """
+    #     NISP calculation with different layer hooks based on version.
+    #     Args:
+    #         hook_location: Where to hook into the model ('before_lstm', 'after_lstm', 'before_output').
+    #     """
+    #     activations = []
+    #     all_attributions = []
+    #     self.load_model(self.currentModelName)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     # Register hooks at different stages based on the version
+    #     def save_activation(name):
+    #         def hook(module, input, output):
+    #             if isinstance(output, tuple):
+    #                 output = output[0]  # For LSTM, handle tuple outputs
+    #             activations.append(output.detach())
+    #
+    #         return hook
+    #
+    #     # Set hooks based on the chosen version
+    #     # if hook_location == 'input':
+    #     #     # Hook into the input before LSTM (you may need to adjust depending on your model architecture)
+    #     #     for name, layer in self.currentModel.named_modules():
+    #     #         if isinstance(layer, torch.nn.LSTM):  # Assuming LSTM is the first main layer
+    #     #             layer.register_forward_hook(save_activation(name))  # Use forward hook instead of forward pre-hook
+    #     #             break
+    #     # elif hook_location == 'after_lstm':
+    #     #     # Hook into the output of the LSTM layer
+    #     #     for name, layer in self.currentModel.named_modules():
+    #     #         if isinstance(layer, torch.nn.LSTM):
+    #     #             layer.register_forward_hook(save_activation(name))
+    #     #             break
+    #     # elif hook_location == 'before_output':
+    #     #     # Hook into the layer just before the final output layer (often fully connected)
+    #     #     for name, layer in self.currentModel.named_modules():
+    #     #         if isinstance(layer, torch.nn.Linear):  # Assuming the output is from a dense/linear layer
+    #     #             layer.register_forward_hook(save_activation(name))
+    #     #             break
+    #     # else:
+    #     #     raise ValueError(f"Unknown hook location: {hook_location}")
+    #     #
+    #     # Set hooks based on the chosen location
+    #     if hook_location == 'input_seq':
+    #         for name, layer in self.currentModel.named_modules():
+    #             if isinstance(layer, torch.nn.LSTM):
+    #                 layer.register_forward_hook(save_activation(name))
+    #                 break
+    #     elif hook_location == 'lstm':
+    #         for name, layer in self.currentModel.named_modules():
+    #             if isinstance(layer, torch.nn.LSTM):
+    #                 layer.register_forward_hook(save_activation(name))
+    #                 break
+    #     elif hook_location == 'fc1':
+    #         for name, layer in self.currentModel.named_modules():
+    #             if name == hook_location:
+    #                 layer.register_forward_hook(save_activation(name))
+    #                 break
+    #     elif hook_location == 'fc5':
+    #         for name, layer in self.currentModel.named_modules():
+    #             if isinstance(layer, torch.nn.Linear):
+    #                 layer.register_forward_hook(save_activation(name))
+    #                 break
+    #     else:
+    #         raise ValueError(f"Unknown hook location: {hook_location}")
+    #
+    #     # Initialize importance scores
+    #     importance_scores = torch.zeros(len(self.selected_features), device=device)
+    #
+    #     # Iterate over the validation loader and compute importance
+    #     total_batches = 0
+    #     for inputs, _ in valid_loader:
+    #         inputs = inputs.to(device)
+    #
+    #         with torch.no_grad():
+    #             outputs = self.currentModel(inputs)
+    #
+    #             # Compute output importance based on outputs
+    #             if outputs.dim() == 3:
+    #                 output_importance = outputs.mean(dim=1)  # Mean over time steps
+    #             elif outputs.dim() == 2:
+    #                 output_importance = outputs  # Already the correct shape
+    #             else:
+    #                 raise ValueError(f"Unexpected output shape: {outputs.shape}")
+    #
+    #             reduced_output_importance = output_importance[:, :len(self.selected_features)]
+    #
+    #             # Use the activations captured from the hooked layers
+    #             for activation in activations:
+    #                 if activation.dim() == 3:
+    #                     layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
+    #                 elif activation.dim() == 2:
+    #                     layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
+    #
+    #                 # Accumulate importance scores based on activation and reduced output importance
+    #                 importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
+    #
+    #         # Collect all attributions for later ACTIF aggregation
+    #         all_attributions.append(importance_scores.cpu().numpy())
+    #
+    #         total_batches += 1
+    #         activations.clear()  # Clear activations for the next batch
+    #
+    #     all_attributions = np.array(all_attributions)
+    #
+    #     print(f"Shape of all_attributions: {all_attributions.shape}")
+    #
+    #     # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
+    #     if actif_variant == 'mean':
+    #         importance = self.calculate_actif_mean(all_attributions)
+    #     elif actif_variant == 'meanstd':
+    #         importance = self.calculate_actif_meanstddev(all_attributions)
+    #     elif actif_variant == 'inv':
+    #         importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+    #     elif actif_variant == 'robust':
+    #         importance = self.calculate_actif_robust(all_attributions)
+    #     else:
+    #         raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+    #
+    #     # Ensure that the importance variable is a list or array with the same length as the number of features
+    #     if not isinstance(importance, np.ndarray):
+    #         importance = np.array(importance)
+    #
+    #     if importance.shape[0] != len(self.selected_features):
+    #         raise ValueError(
+    #             f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+    #         )
+    #
+    #     # Prepare the results with the aggregated importance
+    #     results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+    #                range(len(self.selected_features))]
+    #
+    #     return results
+
+    '''
+        NISP
+    '''
+
+    def compute_old_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+        self.load_model(self.currentModelName)
+        print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+
+        activations = []
+
+        # Hook to capture activations
+        def save_activation(name):
+            def hook(module, input, output):
+                if isinstance(output, tuple):  # Handle LSTM tuple outputs
+                    output = output[0]
+                activations.append(output.detach())  # Detach to avoid gradient tracking
+
+            return hook
+
+        # Register hooks for LSTM layers
+        for name, layer in self.currentModel.named_modules():
+            if isinstance(layer, torch.nn.LSTM):
+                layer.register_forward_hook(save_activation(name))
+
+        self.currentModel.eval()
+        importance_scores = []
+
+        for inputs, _ in valid_loader:
+            inputs = inputs.to(device)
+
+            with torch.no_grad():
+                outputs = self.currentModel(inputs)  # Trigger hooks
+
+                for i in range(inputs.size(0)):  # Process each sample
+                    single_output = outputs[i]
+
+                    # Handle scalar or 1D outputs
+                    if single_output.dim() == 1:  # Already 1D
+                        output_importance = single_output
+                    else:
+                        raise ValueError(f"Unexpected output shape: {single_output.shape}")
+
+                    sample_importance = torch.zeros(len(self.selected_features), device=device)
+
+                    for activation in reversed(activations):
+                        single_activation = activation[i]
+
+                        if single_activation.dim() == 3:  # [timesteps, features]
+                            layer_importance = single_activation.sum(dim=1).mean(dim=0)
+                        elif single_activation.dim() == 2:  # [features]
+                            layer_importance = single_activation.mean(dim=0)
+                        else:
+                            layer_importance = single_activation
+
+                        # Resize if needed
+                        if layer_importance.shape[0] != len(self.selected_features):
+                            layer_importance = torch.nn.functional.interpolate(
+                                layer_importance.unsqueeze(0).unsqueeze(0),
+                                size=len(self.selected_features),
+                                mode='linear',
+                                align_corners=True
+                            ).squeeze(0).squeeze(0)
+
+                        sample_importance += layer_importance * output_importance.mean()
+
+                    importance_scores.append(sample_importance.cpu().numpy())
+
+            activations.clear()
+
+        all_attributions = np.array(importance_scores)
+        print(f"Shape of all_attributions: {all_attributions.shape}")
+
+        if all_attributions.shape[1] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {all_attributions.shape[1]} importance scores, but {len(self.selected_features)} features are expected."
+            )
+
+        # Convert importance scores to numpy array for ACTIF aggregation
+        all_attributions = np.array(importance_scores)
+        print(f"Shape of all_attributions: {all_attributions.shape}")
+
+        # Aggregate based on actif_variant
+        if actif_variant == 'mean':
+            importance = self.calculate_actif_mean(all_attributions)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(all_attributions)
+        elif actif_variant == 'inv':
+            importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+        elif actif_variant == 'robust':
+            importance = self.calculate_actif_robust(all_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Check if importance array is valid
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)
+        if importance.shape[0] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected.")
+
+        # Prepare the results with aggregated importance
+        results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+                   range(len(self.selected_features))]
+        return results
+
+    #
+    # def compute_old_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+    #     self.load_model(self.currentModelName)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     # Initialize variables
+    #     activations = []
+    #     importance_scores = torch.zeros(len(self.selected_features), device=device)  # Initialize importance scores
+    #
+    #     # Hook function for capturing activations
+    #     def save_activation(name):
+    #         def hook(model, input, output):
+    #             if isinstance(output, tuple):  # Handle LSTM tuple outputs
+    #                 output = output[0]
+    #             activations.append(output.detach())  # Avoid gradient tracking
+    #
+    #         return hook
+    #
+    #     # Set hooks in all LSTM layers
+    #     for name, layer in self.currentModel.named_modules():
+    #         if isinstance(layer, torch.nn.LSTM):
+    #             layer.register_forward_hook(save_activation(name))
+    #
+    #     # Set model to evaluation mode
+    #     self.currentModel.eval()
+    #     total_batches = 0
+    #
+    #     if len(valid_loader) == 0:
+    #         print("Skipping subject: The validation loader is empty.")
+    #         return None
+    #
+    #     for i, (inputs, _) in enumerate(valid_loader):
+    #         inputs = inputs.to(device)
+    #
+    #         # Using mixed precision context
+    #         with autocast():
+    #             outputs = self.currentModel(inputs)  # Trigger forward pass
+    #
+    #             # Process output for importance calculations
+    #             if outputs.dim() == 3:  # (batch_size, sequence_length, hidden_size)
+    #                 output_importance = outputs.mean(dim=1)
+    #             elif outputs.dim() == 2:  # (batch_size, hidden_size)
+    #                 output_importance = outputs
+    #             else:
+    #                 raise ValueError(f"Unexpected output shape: {outputs.shape}")
+    #
+    #             reduced_output_importance = output_importance[:, :len(self.selected_features)]
+    #
+    #             # Update importance scores based on activations
+    #             for activation in reversed(activations):
+    #                 if activation.dim() == 3:
+    #                     layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
+    #                 elif activation.dim() == 2:
+    #                     layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
+    #                 importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
+    #
+    #         total_batches += 1
+    #         activations.clear()  # Clear activations after each batch
+    #
+    #         # Free GPU memory after each batch
+    #         torch.cuda.empty_cache()
+    #
+    #     # Average the importance scores across batches
+    #     if total_batches > 0:
+    #         importance_scores /= total_batches
+    #         importance_scores = importance_scores.detach().cpu().numpy()
+    #     else:
+    #         print("No batches processed for this subject.")
+    #         return None
+    #
+    #     # Convert importance scores to feature importance list
+    #     feature_importance = [{'feature': feature, 'attribution': importance_scores[i]} for i, feature in
+    #                           enumerate(self.selected_features)]
+    #     if not feature_importance:
+    #         print(
+    #             f"Warning: No feature importances calculated for method '{hook_location}_{actif_variant}'. Returning defaults.")
+    #         feature_importance = [{'feature': feature, 'attribution': 0} for feature in self.selected_features]
+    #
+    #     return feature_importance
+
+    def compute_original_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+        """
+        Compute ORIGINAL DeepACTIF importance scores with per-sample outputs.
+        Args:
+            valid_loader: DataLoader containing validation or test data.
+            hook_location: Hook layer location ('input', 'lstm', etc.).
+            actif_variant: Aggregation method for importance scores.
+        """
+        activations = []
+
+        self.load_model(self.currentModelName)
+        print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+
+        # Hook to capture activations
+        def save_activation(name):
+            def hook(module, input, output):
+                if isinstance(output, tuple):  # Handle LSTM tuple outputs
+                    output = output[0]
+                activations.append(output.detach())
+
+            return hook
+
+        # Register hooks based on hook_location
+        for name, layer in self.currentModel.named_modules():
+            if hook_location in name:
+                layer.register_forward_hook(save_activation(name))
+                break
+
+        self.currentModel.eval()
+        importance_scores = []
+
+        for inputs, _ in valid_loader:
+            inputs = inputs.to(device)
+
+            with torch.no_grad():
+                outputs = self.currentModel(inputs)
+
+                for i in range(inputs.size(0)):
+                    single_output = outputs[i]
+
+                    # Handle scalar or vector outputs
+                    if single_output.dim() == 0:  # Scalar output
+                        output_importance = single_output.unsqueeze(0)
+                    elif single_output.dim() == 1:  # Vector output
+                        output_importance = single_output
+                    else:
+                        raise ValueError(f"Unexpected output shape: {single_output.shape}")
+
+                    # Align output importance size with the number of selected features
+                    if output_importance.size(0) != len(self.selected_features):
+                        output_importance_resized = torch.nn.functional.interpolate(
+                            output_importance.unsqueeze(0).unsqueeze(0),  # Add dimensions
+                            size=len(self.selected_features),
+                            mode='linear',
+                            align_corners=True
+                        ).squeeze(0).squeeze(0)
+                    else:
+                        output_importance_resized = output_importance
+
+                    sample_importance = torch.zeros(len(self.selected_features), device=device)
+
+                    for activation in activations:
+                        single_activation = activation[i]
+
+                        # Compute layer importance
+                        if single_activation.dim() == 3:
+                            layer_importance = single_activation.sum(dim=1).mean(dim=0)
+                        elif single_activation.dim() == 2:
+                            layer_importance = single_activation.mean(dim=0)
+                        else:
+                            layer_importance = single_activation
+
+                        # Align layer importance size with the number of selected features
+                        if layer_importance.size(0) != len(self.selected_features):
+                            layer_importance_resized = torch.nn.functional.interpolate(
+                                layer_importance.unsqueeze(0).unsqueeze(0),
+                                size=len(self.selected_features),
+                                mode='linear',
+                                align_corners=True
+                            ).squeeze(0).squeeze(0)
+                        else:
+                            layer_importance_resized = layer_importance
+
+                        sample_importance += layer_importance_resized * output_importance_resized.mean()
+
+                    importance_scores.append(sample_importance.cpu().numpy())
+
+            activations.clear()
+
+        all_attributions = np.array(importance_scores)
+        print(f"Shape of all_attributions: {all_attributions.shape}")
+
+        # Apply ACTIF variant for aggregation
+        if actif_variant == 'mean':
+            importance = self.calculate_actif_mean(all_attributions)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(all_attributions)
+        elif actif_variant == 'inv':
+            importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+        elif actif_variant == 'robust':
+            importance = self.calculate_actif_robust(all_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Ensure the importance array matches the number of features
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)
+
+        if importance.shape[0] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+            )
+
+        # Prepare the results
+        results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+                   range(len(self.selected_features))]
+        return results
+    # def compute_original_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+    #     """
+    #     NISP calculation with different layer hooks based on version.
+    #     Args:
+    #         hook_location: Where to hook into the model ('before_lstm', 'after_lstm', 'before_output').
+    #     """
+    #     activations = []
+    #     all_attributions = []
+    #     self.load_model(self.currentModelName)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     # Register hooks at different stages based on the version
+    #     def save_activation(name):
+    #         def hook(module, input, output):
+    #             if isinstance(output, tuple):
+    #                 output = output[0]  # For LSTM, handle tuple outputs
+    #             activations.append(output.detach())
+    #
+    #         return hook
+    #
+    #     # Set hooks based on the chosen version
+    #     if hook_location == 'input_linear':
+    #         # Hook into the input before LSTM (you may need to adjust depending on your model architecture)
+    #         for name, layer in self.currentModel.named_modules():
+    #             if isinstance(layer, torch.nn.LSTM):  # Assuming LSTM is the first main layer
+    #                 layer.register_forward_hook(save_activation(name))  # Use forward hook instead of forward pre-hook
+    #                 break
+    #     elif hook_location == 'lstm':
+    #         # Hook into the output of the LSTM layer
+    #         for name, layer in self.currentModel.named_modules():
+    #             if isinstance(layer, torch.nn.LSTM):
+    #                 layer.register_forward_hook(save_activation(name))
+    #                 break
+    #     elif hook_location == 'fc1':
+    #         # Hook into the output of the LSTM layer
+    #         for name, layer in self.currentModel.named_modules():
+    #             if isinstance(layer, torch.nn.LSTM):
+    #                 layer.register_forward_hook(save_activation(name))
+    #                 break
+    #     elif hook_location == 'fc5':
+    #         # Hook into the layer just before the final output layer (often fully connected)
+    #         for name, layer in self.currentModel.named_modules():
+    #             if isinstance(layer, torch.nn.Linear):  # Assuming the output is from a dense/linear layer
+    #                 layer.register_forward_hook(save_activation(name))
+    #                 break
+    #     else:
+    #         raise ValueError(f"Unknown hook location: {hook_location}")
+    #
+    #     # Initialize importance scores
+    #     importance_scores = torch.zeros(len(self.selected_features), device=device)
+    #
+    #     # Iterate over the validation loader and compute importance
+    #     total_batches = 0
+    #     for inputs, _ in valid_loader:
+    #         inputs = inputs.to(device)
+    #
+    #         with torch.no_grad():
+    #             outputs = self.currentModel(inputs)
+    #
+    #             # Compute output importance based on outputs
+    #             if outputs.dim() == 3:
+    #                 output_importance = outputs.mean(dim=1)  # Mean over time steps
+    #             elif outputs.dim() == 2:
+    #                 output_importance = outputs  # Already the correct shape
+    #             else:
+    #                 raise ValueError(f"Unexpected output shape: {outputs.shape}")
+    #
+    #             reduced_output_importance = output_importance[:, :len(self.selected_features)]
+    #
+    #             # Use the activations captured from the hooked layers
+    #             for activation in activations:
+    #                 if activation.dim() == 3:
+    #                     layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
+    #                 elif activation.dim() == 2:
+    #                     layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
+    #
+    #                 # Accumulate importance scores based on activation and reduced output importance
+    #                 importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
+    #
+    #         # Collect all attributions for later ACTIF aggregation
+    #         all_attributions.append(importance_scores.cpu().numpy())
+    #
+    #         total_batches += 1
+    #         activations.clear()  # Clear activations for the next batch
+    #
+    #     all_attributions = np.array(all_attributions)
+    #
+    #     print(f"Shape of all_attributions: {all_attributions.shape}")
+    #
+    #     # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
+    #     if actif_variant == 'mean':
+    #         importance = self.calculate_actif_mean(all_attributions)
+    #     elif actif_variant == 'meanstd':
+    #         importance = self.calculate_actif_meanstddev(all_attributions)
+    #     elif actif_variant == 'inv':
+    #         importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+    #     elif actif_variant == 'robust':
+    #         importance = self.calculate_actif_robust(all_attributions)
+    #     else:
+    #         raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+    #
+    #     # Ensure that the importance variable is a list or array with the same length as the number of features
+    #     if not isinstance(importance, np.ndarray):
+    #         importance = np.array(importance)
+    #
+    #     if importance.shape[0] != len(self.selected_features):
+    #         raise ValueError(
+    #             f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+    #         )
+    #
+    #     # Prepare the results with the aggregated importance
+    #     results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+    #                range(len(self.selected_features))]
+    #
+    #     return results
+    def compute_ur_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+        """
+        Compute DeepACTIF importance scores using weights instead of activations.
+        Args:
+            valid_loader: DataLoader containing validation or test data.
+            hook_location: Layer to analyze weights ('input', 'fc1', etc.).
+            actif_variant: Aggregation method for importance scores.
+        """
+        self.load_model(self.currentModelName)
+        print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+
+        # Extract the layer for the given hook location
+        target_layer = None
+        for name, layer in self.currentModel.named_modules():
+            if name == hook_location:
+                target_layer = layer
+                break
+
+        if target_layer is None:
+            raise ValueError(f"Layer '{hook_location}' not found in the model.")
+
+        # Check if the layer has weights
+        if not hasattr(target_layer, 'weight'):
+            raise ValueError(f"Layer '{hook_location}' does not have weights to analyze.")
+
+        weights = target_layer.weight.detach().cpu().numpy()  # Extract weights
+        weight_importance = np.abs(weights).mean(axis=0)  # Aggregate weights
+        weight_importance_tensor = torch.tensor(weight_importance, device=device)
+
+        # Interpolate or reduce dimensions if necessary
+        if weight_importance_tensor.shape[0] != len(self.selected_features):
+            weight_importance_tensor = torch.nn.functional.interpolate(
+                weight_importance_tensor.unsqueeze(0).unsqueeze(0),  # Add dimensions
+                size=len(self.selected_features),
+                mode='linear',
+                align_corners=True
+            ).squeeze(0).squeeze(0)  # Remove extra dimensions
+
+        # Initialize importance scores
+        importance_scores = []
+
+        for inputs, _ in valid_loader:
+            inputs = inputs.to(device)
+
+            with torch.no_grad():
+                outputs = self.currentModel(inputs)
+
+                for i in range(inputs.size(0)):  # Process each sample
+                    single_output = outputs[i]
+
+                    # Handle scalar or 1D outputs
+                    if single_output.dim() == 0:  # Scalar output
+                        output_importance = single_output.unsqueeze(0)
+                    elif single_output.dim() == 1:  # Already 1D
+                        output_importance = single_output
+                    else:
+                        raise ValueError(f"Unexpected output shape: {single_output.shape}")
+
+                    # Scale weights by output importance
+                    sample_importance = weight_importance_tensor * output_importance.mean()
+                    importance_scores.append(sample_importance.cpu().numpy())
+
+        # Convert to numpy array
+        all_attributions = np.array(importance_scores)
+        print(f"Shape of all_attributions: {all_attributions.shape}")
+
+        # Apply ACTIF variant for aggregation
+        if actif_variant == 'mean':
+            importance = self.calculate_actif_mean(all_attributions)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(all_attributions)
+        elif actif_variant == 'inv':
+            importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+        elif actif_variant == 'robust':
+            importance = self.calculate_actif_robust(all_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Ensure the importance array matches the number of features
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)
+
+        if importance.shape[0] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+            )
+
+        # Prepare the results
+        results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+                   range(len(self.selected_features))]
+        return results
+
+    # def compute_ur_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+    #     """
+    #     Compute UR DeepACTIF importance scores with per-sample outputs.
+    #     Args:
+    #         valid_loader: DataLoader containing validation or test data.
+    #         hook_location: Hook layer location ('input', 'lstm', etc.).
+    #         actif_variant: Aggregation method for importance scores.
+    #     """
+    #     activations = []
+    #
+    #     self.load_model(self.currentModelName)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     # Hook only the last LSTM layer
+    #     def save_activation(name):
+    #         def hook(module, input, output):
+    #             if isinstance(output, tuple):
+    #                 output = output[0]
+    #             activations.append(output.detach())
+    #
+    #         return hook
+    #
+    #     # Hook into the last LSTM layer
+    #     for name, layer in self.currentModel.named_modules():
+    #         if isinstance(layer, torch.nn.LSTM) and 'lstm' in name:
+    #             layer.register_forward_hook(save_activation(name))
+    #             break
+    #
+    #     self.currentModel.eval()
+    #     importance_scores = []
+    #
+    #     for inputs, _ in valid_loader:
+    #         inputs = inputs.to(device)
+    #
+    #         with torch.no_grad():
+    #             outputs = self.currentModel(inputs)
+    #
+    #             for i in range(inputs.size(0)):
+    #                 single_output = outputs[i]
+    #
+    #                 if single_output.dim() == 3:
+    #                     output_importance = single_output.mean(dim=0)
+    #                 elif single_output.dim() == 2:
+    #                     output_importance = single_output
+    #                 else:
+    #                     raise ValueError(f"Unexpected output shape: {single_output.shape}")
+    #
+    #                 sample_importance = torch.zeros(len(self.selected_features), device=device)
+    #
+    #                 for activation in activations:
+    #                     single_activation = activation[i]
+    #
+    #                     if single_activation.dim() == 3:
+    #                         layer_importance = single_activation.sum(dim=1).mean(dim=0)
+    #                     elif single_activation.dim() == 2:
+    #                         layer_importance = single_activation.mean(dim=0)
+    #                     else:
+    #                         layer_importance = single_activation
+    #
+    #                     sample_importance += layer_importance * output_importance.mean()
+    #
+    #                 importance_scores.append(sample_importance.cpu().numpy())
+    #
+    #         activations.clear()
+    #
+    #     all_attributions = np.array(importance_scores)
+    #     print(f"Shape of all_attributions: {all_attributions.shape}")
+    #     return all_attributions
+
+    # def compute_ur_deepactif(self, valid_loader, hook_location='input', actif_variant='mean'):
+    #     activations = []
+    #
+    #     self.load_model(self.currentModelName)
+    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+    #
+    #     # Register hook only for the last LSTM layer
+    #     def save_activation(name):
+    #         def hook(model, input, output):
+    #             if isinstance(output, tuple):
+    #                 output = output[0]  # Extract the hidden states
+    #             activations.append(output.detach())  # Detach to avoid tracking gradients
+    #
+    #         return hook
+    #
+    #     # Hook only the last LSTM layer (assuming named 'lstm')
+    #     for name, layer in self.currentModel.named_modules():
+    #         if isinstance(layer, torch.nn.LSTM) and 'lstm' in name:  # Adjust for your LSTM layer name
+    #             layer.register_forward_hook(save_activation(name))
+    #
+    #     self.currentModel.eval()
+    #     importance_scores = torch.zeros(len(self.selected_features), device=device)
+    #
+    #     total_batches = 0
+    #
+    #     if len(valid_loader) == 0:
+    #         print("Skipping subject: The validation loader is empty.")
+    #         return None
+    #
+    #     for i, (inputs, _) in enumerate(valid_loader):
+    #         inputs = inputs.to(device)
+    #
+    #         with autocast():
+    #             outputs = self.currentModel(inputs)
+    #
+    #             if outputs.dim() == 3:
+    #                 output_importance = outputs.mean(dim=1)
+    #             elif outputs.dim() == 2:
+    #                 output_importance = outputs
+    #             else:
+    #                 raise ValueError(f"Unexpected output shape: {outputs.shape}")
+    #
+    #             reduced_output_importance = output_importance[:, :len(self.selected_features)]
+    #
+    #             # Backpropagate importance scores based on activations from selected layer
+    #             for activation in reversed(activations):
+    #                 if activation.dim() == 3:
+    #                     layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
+    #                 elif activation.dim() == 2:
+    #                     layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
+    #                 importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
+    #
+    #         total_batches += 1
+    #         activations.clear()
+    #
+    #         torch.cuda.empty_cache()
+    #
+    #     if total_batches > 0:
+    #         importance_scores = importance_scores / total_batches
+    #         importance_scores = importance_scores.detach().cpu().numpy()
+    #
+    #         feature_importance = [{'feature': feature, 'attribution': importance_scores[i]} for i, feature in
+    #                               enumerate(self.selected_features)]
+    #         return feature_importance
+    #     else:
+    #         print("No batches processed for this subject.")
+    #         return None
+
+    def compute_nisp_configured_urversion(self, valid_loader, accumulation_steps=1,
+                                          use_mixed_precision=False, actif_variant='mean'):
+
+        # Load the model and switch to evaluation mode
+        self.load_model(self.currentModelName)
+        print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+
+        activations = []
+
+        # Register hook to capture activations of each LSTM layer
+        def save_activation(name):
+            def hook(model, input, output):
+                if isinstance(output, tuple):
+                    output = output[0]  # Extract the hidden states
+                activations.append(output.detach())  # Detach to avoid tracking gradients
+
+            return hook
+
+        # Hook into all LSTM layers to capture activations
+        for name, layer in self.currentModel.named_modules():
+            if isinstance(layer, torch.nn.LSTM):
+                layer.register_forward_hook(save_activation(name))
+
+        self.currentModel.eval()
+        importance_scores = torch.zeros(len(self.selected_features), device=device)  # Initialize importance scores
+
+        total_batches = 0  # For accumulation step counting
+
+        # Check if the valid_loader is empty and skip the subject if it is
+        if len(valid_loader) == 0:
+            print("Skipping subject: The validation loader is empty.")
+            return None
+
+        for i, (inputs, _) in enumerate(valid_loader):
+            inputs = inputs.to(device)
+
+            # Mixed precision context
+            with autocast(enabled=use_mixed_precision):
+                outputs = self.currentModel(inputs)  # Forward pass to trigger hooks and get activations
+
+                # If outputs have multiple dimensions, handle them appropriately
+                if outputs.dim() == 3:  # (batch_size, sequence_length, hidden_size)
+                    output_importance = outputs.mean(dim=1)  # Mean over the sequence length
+                elif outputs.dim() == 2:  # (batch_size, hidden_size)
+                    output_importance = outputs  # Already in correct shape
+                else:
+                    raise ValueError(f"Unexpected output shape: {outputs.shape}")
+
+                # Ensure size matches the number of input features
+                reduced_output_importance = output_importance[:, :len(self.selected_features)]  # Match feature size
+
+                # Backpropagate importance scores based on activations
+                for activation in reversed(activations):
+                    if activation.dim() == 3:  # (batch_size, sequence_length, hidden_size)
+                        layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
+                    elif activation.dim() == 2:  # (batch_size, hidden_size)
+                        layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
+
+                    # Adjust importance scores with reduced output importance
+                    importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
+
+            total_batches += 1
+            activations.clear()  # Clear activations for the next batch
+
+            # Free GPU cache after each batch
+            torch.cuda.empty_cache()
+
+        # Normalize the importance scores by the number of batches
+        if total_batches > 0:
+            importance_scores /= total_batches
+
+            # Ensure the importance scores are moved to CPU and converted to numpy
+            importance_scores = importance_scores.detach().cpu().numpy()
+
+            # Create a list of feature importances
+            feature_importance = [{'feature': feature, 'attribution': importance_scores[i]} for i, feature in
+                                  enumerate(self.selected_features)]
+
+            return feature_importance
+        else:
+            print("No batches processed for this subject.")
+            return None
 
     '''
     Integrated Gradients
     '''
 
-    def compute_intgrad(self, valid_loader, version='v1', actif_variant='mean'):
+    def compute_intgrad(self, valid_loader, version='input_linear', actif_variant='mean'):
         if version == 'v1':
             return self.compute_intgrad_configured(valid_loader, baseline_type='zeroes', actif_variant=actif_variant)
         elif version == 'v2':
@@ -827,10 +2382,6 @@ class FeatureRankingsCreator:
         else:
             print("No batches processed.")
             return None
-
-    '''
-        SHAP Values
-    '''
 
     def compute_shap(self, valid_loader, version='v1', actif_variant='mean'):
         # Configure SHAP settings based on the variant version

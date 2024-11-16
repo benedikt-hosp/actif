@@ -38,9 +38,8 @@ def get_top_features(importances, percentage):
 
     return top_features
 
-
 def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, num_repetitions=10):
-    percentages = [0.1]  # , 0.2, 0.3]
+    percentages = [0.1]  # Percentages of features to evaluate
     results = {}
     list_name = f"{modelName}_{dataset.name}_{methodName}"
     results[list_name] = {}
@@ -49,13 +48,9 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
     run_columns = ", ".join([f"Run {i + 1}" for i in range(num_repetitions)])
     header = f"Method, Percent, {run_columns}, Mean MAE, Standard Deviation\n"
 
-    # # Write the header row to the file
-    # with open(save_path, "w") as file:
-    #     file.write(header)
-
     for percent in percentages:
         top_features = get_top_features(feature_list, percent)
-        feature_count = len(top_features) - 2  # Adjust based on your specific needs
+        feature_count = len(top_features) - 2  # Adjust based on specific needs
         remaining_features = top_features
         print(f"3. Evaluating top {int(percent * 100)}% features.")
 
@@ -66,8 +61,13 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
 
         trainer.setup(feature_count=feature_count, feature_names=remaining_features)
 
-        # Perform cross-validation and get the performance results for each run
+        # Perform cross-validation
         fold_accuracies = trainer.cross_validate(num_epochs=500, loocv=False, num_repeats=num_repetitions)
+
+        # Debugging: Check the type and content of fold_accuracies
+        if not isinstance(fold_accuracies, (list, np.ndarray)):
+            print(f"fold_accuracies: {fold_accuracies}")
+            raise ValueError("Expected fold_accuracies to be a list or array of performance values.")
 
         # Calculate the mean and standard deviation of the MAE values
         mean_performance = np.mean(fold_accuracies)
@@ -86,18 +86,12 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
 
         print(result_line)
 
-        # Store results in the dictionary
-        # results[list_name][f'{int(percent * 100)}%'] = {
-        #     "runs": performance,
-        #     "mean": mean_performance,
-        #     "std_dev": std_dev_performance
-        # }
-
         # Manually release memory
         del top_features
         gc.collect()
 
     return results
+
 
     # Save final results for this feature list
     # DOPPELT:
@@ -171,7 +165,6 @@ if __name__ == '__main__':
     print("cuDNN version:", torch.backends.cudnn.version())  # cuDNN version
     print("Is CUDA available:", torch.cuda.is_available())  # Check if GPU is available
 
-
     # Setup Model
     modelName = "Foval"
     datasetName = "robustvision"
@@ -184,7 +177,7 @@ if __name__ == '__main__':
 
     # Initialize the trainer
     trainer = FOVALTrainer(config_path="../models/foval/config/foval.json", dataset=dataset, device=device,
-                           save_intermediates_every_epoch=False)
+                           save_intermediates_every_epoch=False, num_repetitions=num_repetitions)
 
     # Define paths
     folder_path = f'../results/{modelName}/{dataset.name}/FeaturesRankings_Creation'

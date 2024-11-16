@@ -35,6 +35,7 @@ class FOVAL(nn.Module):
 
     def forward(self, input_seq, return_intermediates=False):
         intermediates = {'Input': input_seq}
+        in_linear = self.input_linear(input_seq)
 
         lstm_out, _ = self.lstm(input_seq)
         # Permute and apply batch normalization
