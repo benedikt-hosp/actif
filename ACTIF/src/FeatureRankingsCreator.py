@@ -87,6 +87,10 @@ class FeatureRankingsCreator:
             # 'ablation_INV',       # ok
             # 'ablation_PEN',       # ok
 
+            'test1',
+            'test2',
+            'test3',
+
             # SHAP v1 ACTIF Aggregation Variants
             # 'shap_values_v1_MEAN',            # ok
             # 'shap_values_v1_MEANSTD',         # ok
@@ -333,6 +337,11 @@ class FeatureRankingsCreator:
 
     def get_method_function(self, method, valid_loader, load_model=False):
         method_functions = {
+
+            'test1': lambda: self.test_da(valid_loader, version='v1', actif_variant='mean'),
+            'test2': lambda: self.test_da(valid_loader, version='v2', actif_variant='mean'),
+            'test3': lambda: self.test_da(valid_loader, version='v3', actif_variant='mean'),
+
             # Actif on Input Methods
             'actif_mean': lambda: self.actif_mean(valid_loader),
             'actif_mean_stddev': lambda: self.actif_mean_stddev(valid_loader),
@@ -2676,3 +2685,135 @@ class FeatureRankingsCreator:
                       dropout_rate=hyperparameters['dropout_rate']).to(device)
 
         return model, hyperparameters
+
+
+    def test_da(self, valid_loader, version='v1', actif_variant='mean'):
+
+        """"  ""
+        Perform NISP with different sensitivity versions:
+        Version 1: Use activations before LSTM
+        Version 2: Use activations after LSTM
+        Version 3: Use activations just before the output layer
+        """
+        if version == 'v1':
+            return self.compute_nisp_configured2(valid_loader, hook_location='before_lstm',
+                                                actif_variant=actif_variant)
+        elif version == 'v2':
+            return self.compute_nisp_configured2(valid_loader, hook_location='after_lstm',
+                                                actif_variant=actif_variant)
+        elif version == 'v3':
+            return self.compute_nisp_configured2(valid_loader, hook_location='before_output',
+                                                actif_variant=actif_variant)
+        else:
+            raise ValueError(f"Unknown version type: {version}")
+
+    def compute_nisp_configured2(self, valid_loader, hook_location='before_lstm', actif_variant='mean'):
+        """
+        NISP calculation with different layer hooks based on version.
+        Args:
+            hook_location: Where to hook into the model ('before_lstm', 'after_lstm', 'before_output').
+        """
+        activations = []
+        all_attributions = []
+        self.load_model(self.currentModelName)
+        print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
+
+        # Register hooks at different stages based on the version
+        def save_activation(name):
+            def hook(module, input, output):
+                if isinstance(output, tuple):
+                    output = output[0]  # For LSTM, handle tuple outputs
+                activations.append(output.detach())
+
+            return hook
+
+        # Set hooks based on the chosen version
+        if hook_location == 'before_lstm':
+            # Hook into the input before LSTM (you may need to adjust depending on your model architecture)
+            for name, layer in self.currentModel.named_modules():
+                if isinstance(layer, torch.nn.LSTM):  # Assuming LSTM is the first main layer
+                    layer.register_forward_hook(
+                        save_activation(name))  # Use forward hook instead of forward pre-hook
+                    break
+        elif hook_location == 'after_lstm':
+            # Hook into the output of the LSTM layer
+            for name, layer in self.currentModel.named_modules():
+                if isinstance(layer, torch.nn.LSTM):
+                    layer.register_forward_hook(save_activation(name))
+                    break
+        elif hook_location == 'before_output':
+            # Hook into the layer just before the final output layer (often fully connected)
+            for name, layer in self.currentModel.named_modules():
+                if isinstance(layer, torch.nn.Linear):  # Assuming the output is from a dense/linear layer
+                    layer.register_forward_hook(save_activation(name))
+                    break
+        else:
+            raise ValueError(f"Unknown hook location: {hook_location}")
+
+        # Initialize importance scores
+        importance_scores = torch.zeros(len(self.selected_features), device=device)
+
+        # Iterate over the validation loader and compute importance
+        total_batches = 0
+        for inputs, _ in valid_loader:
+            inputs = inputs.to(device)
+
+            with torch.no_grad():
+                outputs = self.currentModel(inputs)
+
+                # Compute output importance based on outputs
+                if outputs.dim() == 3:
+                    output_importance = outputs.mean(dim=1)  # Mean over time steps
+                elif outputs.dim() == 2:
+                    output_importance = outputs  # Already the correct shape
+                else:
+                    raise ValueError(f"Unexpected output shape: {outputs.shape}")
+
+                reduced_output_importance = output_importance[:, :len(self.selected_features)]
+
+                # Use the activations captured from the hooked layers
+                for activation in activations:
+                    if activation.dim() == 3:
+                        layer_importance = activation.sum(dim=1).mean(dim=0)[:len(self.selected_features)]
+                    elif activation.dim() == 2:
+                        layer_importance = activation.mean(dim=0)[:len(self.selected_features)]
+
+                    # Accumulate importance scores based on activation and reduced output importance
+                    importance_scores += layer_importance * reduced_output_importance.mean(dim=0)
+
+            # Collect all attributions for later ACTIF aggregation
+            all_attributions.append(importance_scores.cpu().numpy())
+
+            total_batches += 1
+            activations.clear()  # Clear activations for the next batch
+
+        all_attributions = np.array(all_attributions)
+
+        print(f"Shape of all_attributions: {all_attributions.shape}")
+
+        # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
+        if actif_variant == 'mean':
+            importance = self.calculate_actif_mean(all_attributions)
+        elif actif_variant == 'meanstd':
+            importance = self.calculate_actif_meanstddev(all_attributions)
+        elif actif_variant == 'inv':
+            importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
+        elif actif_variant == 'robust':
+            importance = self.calculate_actif_robust(all_attributions)
+        else:
+            raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
+
+        # Ensure that the importance variable is a list or array with the same length as the number of features
+        if not isinstance(importance, np.ndarray):
+            importance = np.array(importance)
+
+        if importance.shape[0] != len(self.selected_features):
+            raise ValueError(
+                f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
+            )
+
+        # Prepare the results with the aggregated importance
+        results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
+                   range(len(self.selected_features))]
+
+        return results
