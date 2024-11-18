@@ -40,7 +40,7 @@ def get_top_features(importances, percentage):
 
 
 def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, num_repetitions=10):
-    percentages = [0.1]  # , 0.2, 0.3]
+    percentages = [0.1, 0.2, 0.3]  # , 0.2, 0.3]
     results = {}
     list_name = f"{modelName}_{dataset.name}_{methodName}"
     results[list_name] = {}
@@ -67,7 +67,7 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
         trainer.setup(feature_count=feature_count, feature_names=remaining_features)
 
         # Perform cross-validation and get the performance results for each run
-        fold_accuracies = trainer.cross_validate(num_epochs=500, loocv=False, num_repeats=num_repetitions)
+        fold_accuracies = trainer.cross_validate(num_epochs=300, loocv=False, num_repeats=num_repetitions)
 
         # Calculate the mean and standard deviation of the MAE values
         mean_performance = np.mean(fold_accuracies)
@@ -195,7 +195,7 @@ if __name__ == '__main__':
     # baseline_performance = test_baseline_model(trainer, modelName, dataset, save_path, num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
-    for file_name in os.listdir(folder_path):
+    for file_name in reversed(os.listdir(folder_path)):
         if file_name.endswith(".csv"):
             file_path = os.path.join(folder_path, file_name)
             method = file_name.replace('.csv', '')  # Extract method name from file
