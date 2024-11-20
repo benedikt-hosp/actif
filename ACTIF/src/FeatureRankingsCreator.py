@@ -75,96 +75,89 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
-            # ACTIF Variants
-            'actif_mean',                     # model-agnostic: ok
-            'actif_mean_stddev',              # ok
-            'actif_inverted_weighted_mean',   # ok
-            'actif_robust',                   # ok
+            # DeepACTIF on input values
+            'deepactif_input_MEAN',
+            'deepactif_input_MEANSTD',
+            'deepactif_input_INV',
+            'deepactif_input_INV',
 
-            # NISP V1 ACTIF Aggregation Variants
-            'nisp_v1_MEAN',  # ok
-            'nisp_v1_MEANSTD',  # ok
-            'nisp_v1_INV',  # ok
-            'nisp_v1_PEN',  # ok
+            # DeepACTIF on LSTM values
+            'deepactif_input_MEAN',
+            'deepactif_input_MEANSTD',
+            'deepactif_LSTM_INV',
+            'deepactif_input_INV',
 
-            # NISP V2 ACTIF Aggregation Variants
-            'nisp_v2_MEAN',  # ok
-            'nisp_v2_MEANSTD',  # ok
-            'nisp_v2_INV',  # ok
-            'nisp_v2_PEN',  # ok
+            # DeepACTIF on penultimate values
+            'deepactif_penultimate_MEAN',
+            'deepactif_penultimate_MEANSTD',
+            'deepactif_penultimate_INV',
+            'deepactif_penultimate_PEN',
 
-            # NISP V3  ACTIF Aggregation Variants
-            'nisp_v3_MEAN',  # ok
-            'nisp_v3_MEANSTD',  # ok
-            'nisp_v3_INV',  # ok
-            'nisp_v3_PEN',  # ok
+            # SHUFFLE
+            'shuffle_MEAN',
+            'shuffle_MEANSTD',
+            'shuffle_INV',
+            'shuffle_PEN',
 
-            # SHUFFLE_Actif Aggregation Variants
-            'shuffle_MEAN',    # ok
-            'shuffle_MEANSTD', # ok
-            'shuffle_INV',     # ok
-            'shuffle_PEN',     # ok
+            # ABLATION
+            'ablation_MEAN',
+            'ablation_MEANSTD',
+            'ablation_INV',
+            'ablation_PEN',
 
-            # ABLATION ACTIF Aggregation Variants
-            'ablation_MEAN',      # ok
-            'ablation_MEANSTD',   # ok
-            'ablation_INV',       # ok
-            'ablation_PEN',       # ok
+            # Deeplift ZERO Baseline
+            'deeplift_zero_MEAN',
+            'deeplift_zero_MEANSTD',
+            'deeplift_zero_INV',
+            'deeplift_zero_PEN',
 
-            # Deeplift ZERO Baseline ACTIF Aggregation Variants
-            'deeplift_zero_MEAN',     # ok
-            'deeplift_zero_MEANSTD',  # ok
-            'deeplift_zero_INV',      # ok
-            'deeplift_zero_PEN',      # ok
-            #
-            # # Deeplift Random Baseline ACTIF Aggregation Variants
-            'deeplift_random_MEAN',       # ok
-            'deeplift_random_MEANSTD',    # ok
-            'deeplift_random_INV',        # ok
-            'deeplift_random_PEN',        # ok
+            # Deeplift Random Baseline
+            'deeplift_random_MEAN',
+            'deeplift_random_MEANSTD',
+            'deeplift_random_INV',
+            'deeplift_random_PEN',
 
-            # Deeplift MEAN baseline ACTIF Aggregation Variants
-            'deeplift_mean_MEAN',         # ok
-            'deeplift_mean_MEANSTD',      # ok
-            'deeplift_mean_INV',          # ok
-            'deeplift_mean_PEN',          # ok
+            # Deeplift Mean Baseline
+            'deeplift_mean_MEAN',
+            'deeplift_mean_MEANSTD',
+            'deeplift_mean_INV',
+            'deeplift_mean_PEN',
 
+            # IntGrad Zeroes Baseline
+            'intGrad_zero_MEAN',
+            'intGrad_zero_MEANSTD',
+            'intGrad_zero_INV',
+            'intGrad_zero_PEN',
 
-            # IntGrad V1 ACTIF Aggregation Variants
-            'captum_intGrad_v1_MEAN',         # ok
-            'captum_intGrad_v1_MEANSTD',      # ok
-            'captum_intGrad_v1_INV',          # ok
-            'captum_intGrad_v1_PEN',          # ok
+            # Intgrad Random Baseline
+            'intGrad_random_MEAN',
+            'intGrad_random_MEANSTD',
+            'intGrad_random_INV',
+            'intGrad_random_PEN',
 
-            # Intgrad v2 ACTIF Aggregation Variants
-            'captum_intGrad_v2_MEAN',         # ok
-            'captum_intGrad_v2_MEANSTD',      # ok
-            'captum_intGrad_v2_INV',          # ok
-            'captum_intGrad_v2_PEN',          # ok
-
-            # Intgrad v3 ACTIF Aggregation Variants
-            'captum_intGrad_v3_MEAN',         # ok
-            'captum_intGrad_v3_MEANSTD',      # ok
-            'captum_intGrad_v3_INV',          # ok
-            'captum_intGrad_v3_PEN',          # ok
+            # Intgrad Mean Baseline
+            'intGrad_mean_MEAN',
+            'intGrad_mean_MEANSTD',
+            'intGrad_mean_INV',
+            'intGrad_mean_PEN',
 
             # SHAP v1 ACTIF Aggregation Variants
-            'shap_values_v1_MEAN',            # ok
-            'shap_values_v1_MEANSTD',         # ok
-            'shap_values_v1_INV',             # ok
-            'shap_values_v1_PEN',             # ok
+            'shap_mem_MEAN',
+            'shap_mem_MEANSTD',
+            'shap_mem_INV',
+            'shap_mem_PEN',
 
             # SHAP v2 ACTIF Aggregation Variants
-            'shap_values_v2_MEAN',
-            'shap_values_v2_MEANSTD',
-            'shap_values_v2_INV',
-            'shap_values_v2_PEN',
+            'shap_time_MEAN',
+            'shap_time_MEANSTD',
+            'shap_time_INV',
+            'shap_time_PEN',
 
             # SHAP v3 ACTIF Aggregation Variants
-            'shap_values_v3_MEAN',
-            'shap_values_v3_MEANSTD',
-            'shap_values_v3_INV',
-            'shap_values_v3_PEN',
+            'shap_prec_MEAN',
+            'shap_prec_MEANSTD',
+            'shap_prec_INV',
+            'shap_prec_PEN',
         ]
 
     def load_model(self, modelName):
@@ -184,7 +177,7 @@ class FeatureRankingsCreator:
             self.sort_importances_based_on_attribution(aggregated_importances, method=method)
 
     # 3.
-    def calculate_ranked_list_by_method(self, method='captum_intGrad'):
+    def calculate_ranked_list_by_method(self, method='intGrad'):
         aggregated_importances = []
         all_execution_times = []
         all_memory_usages = []
@@ -224,100 +217,123 @@ class FeatureRankingsCreator:
     def get_method_function(self, method, valid_loader, load_model=False):
         method_functions = {
             # Actif on Input Methods
-            'actif_mean': lambda: self.actif_mean(valid_loader),
-            'actif_mean_stddev': lambda: self.actif_mean_stddev(valid_loader),
-            'actif_inverted_weighted_mean': lambda: self.actif_inverted_weighted_mean(valid_loader),
-            'actif_robust': lambda: self.actif_robust(valid_loader),
+            # 'actif_mean': lambda: self.actif_mean(valid_loader),
+            # 'actif_mean_stddev': lambda: self.actif_mean_stddev(valid_loader),
+            # 'actif_inverted_weighted_mean': lambda: self.actif_inverted_weighted_mean(valid_loader),
+            # 'actif_robust': lambda: self.actif_robust(valid_loader),
 
             # Shuffle Methods
-            'shuffle_MEAN': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='mean'),
-            'shuffle_MEANSTD': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='meanstd'),
-            'shuffle_INV': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='inv'),
-            'shuffle_PEN': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='robust'),
+            'shuffle_MEAN': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='MEAN'),
+            'shuffle_MEANSTD': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='MEANSTD'),
+            'shuffle_INV': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='INV'),
+            'shuffle_PEN': lambda: self.feature_shuffling_importances(valid_loader, actif_variant='PEN'),
 
             # Ablation Methods
-            'ablation_MEAN': lambda: self.ablation(valid_loader, actif_variant='mean'),
-            'ablation_MEANSTD': lambda: self.ablation(valid_loader, actif_variant='meanstd'),
-            'ablation_INV': lambda: self.ablation(valid_loader, actif_variant='inv'),
-            'ablation_PEN': lambda: self.ablation(valid_loader, actif_variant='robust'),
+            'ablation_MEAN': lambda: self.ablation(valid_loader, actif_variant='MEAN'),
+            'ablation_MEANSTD': lambda: self.ablation(valid_loader, actif_variant='MEANSTD'),
+            'ablation_INV': lambda: self.ablation(valid_loader, actif_variant='INV'),
+            'ablation_PEN': lambda: self.ablation(valid_loader, actif_variant='PEN'),
 
             # Captum Integrated Gradients Methods (v1, v2, v3)
-            'captum_intGrad_v1_MEAN': lambda: self.compute_intgrad(valid_loader, version='v1', actif_variant='mean'),
-            'captum_intGrad_v1_MEANSTD': lambda: self.compute_intgrad(valid_loader, version='v1',
-                                                                      actif_variant='meanstd'),
-            'captum_intGrad_v1_INV': lambda: self.compute_intgrad(valid_loader, version='v1', actif_variant='inv'),
-            'captum_intGrad_v1_PEN': lambda: self.compute_intgrad(valid_loader, version='v1', actif_variant='robust'),
+            'intGrad_zero_MEAN': lambda: self.compute_intgrad(valid_loader, baseline='ZEROES', actif_variant='MEAN'),
+            'intGrad_zero_MEANSTD': lambda: self.compute_intgrad(valid_loader, baseline='ZEROES',
+                                                                 actif_variant='MEANSTD'),
+            'intGrad_zero_INV': lambda: self.compute_intgrad(valid_loader, baseline='ZEROES', actif_variant='INV'),
+            'intGrad_zero_PEN': lambda: self.compute_intgrad(valid_loader, baseline='ZEROES', actif_variant='PEN'),
 
-            'captum_intGrad_v2_MEAN': lambda: self.compute_intgrad(valid_loader, version='v2', actif_variant='mean'),
-            'captum_intGrad_v2_MEANSTD': lambda: self.compute_intgrad(valid_loader, version='v2',
-                                                                      actif_variant='meanstd'),
-            'captum_intGrad_v2_INV': lambda: self.compute_intgrad(valid_loader, version='v2', actif_variant='inv'),
-            'captum_intGrad_v2_PEN': lambda: self.compute_intgrad(valid_loader, version='v2', actif_variant='robust'),
+            'intGrad_random_MEAN': lambda: self.compute_intgrad(valid_loader, baseline='RANDOM', actif_variant='MEAN'),
+            'intGrad_random_MEANSTD': lambda: self.compute_intgrad(valid_loader, baseline='RANDOM',
+                                                                   actif_variant='MEANSTD'),
+            'intGrad_random_INV': lambda: self.compute_intgrad(valid_loader, baseline='RANDOM', actif_variant='INV'),
+            'intGrad_random_PEN': lambda: self.compute_intgrad(valid_loader, baseline='RANDOM', actif_variant='PEN'),
 
-            'captum_intGrad_v3_MEAN': lambda: self.compute_intgrad(valid_loader, version='v3', actif_variant='mean'),
-            'captum_intGrad_v3_MEANSTD': lambda: self.compute_intgrad(valid_loader, version='v3',
-                                                                      actif_variant='meanstd'),
-            'captum_intGrad_v3_INV': lambda: self.compute_intgrad(valid_loader, version='v3', actif_variant='inv'),
-            'captum_intGrad_v3_PEN': lambda: self.compute_intgrad(valid_loader, version='v3', actif_variant='robust'),
+            'intGrad_mean_MEAN': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='MEAN'),
+            'intGrad_mean_MEANSTD': lambda: self.compute_intgrad(valid_loader, baseline='MEAN',
+                                                                 actif_variant='MEANSTD'),
+            'intGrad_mean_INV': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='INV'),
+            'intGrad_mean_PEN': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='PEN'),
 
             # SHAP Values Methods (v1, v2, v3)
-            'shap_values_v1_MEAN': lambda: self.compute_shap(valid_loader, version='v1', actif_variant='mean'),
-            'shap_values_v1_MEANSTD': lambda: self.compute_shap(valid_loader, version='v1', actif_variant='meanstd'),
-            'shap_values_v1_INV': lambda: self.compute_shap(valid_loader, version='v1', actif_variant='inv'),
-            'shap_values_v1_PEN': lambda: self.compute_shap(valid_loader, version='v1', actif_variant='robust'),
+            # print("Running Memory-Efficient SHAP...")
+            'shap_mem_MEAN': lambda: self.compute_shap(valid_loader, background_size=10, nsamples=50,
+                                                       explainer_type='gradient', actif_variant='MEAN'),
+            'shap_mem_MEANSTD': lambda: self.compute_shap(valid_loader, background_size=10, nsamples=50,
+                                                          explainer_type='gradient', actif_variant='MEANSTD'),
+            'shap_mem_INV': lambda: self.compute_shap(valid_loader, background_size=10, nsamples=50,
+                                                      explainer_type='gradient', actif_variant='INV'),
+            'shap_mem_PEN': lambda: self.compute_shap(valid_loader, background_size=10, nsamples=50,
+                                                      explainer_type='gradient', actif_variant='PEN'),
 
-            'shap_values_v2_MEAN': lambda: self.compute_shap(valid_loader, version='v2', actif_variant='mean'),
-            'shap_values_v2_MEANSTD': lambda: self.compute_shap(valid_loader, version='v2', actif_variant='meanstd'),
-            'shap_values_v2_INV': lambda: self.compute_shap(valid_loader, version='v2', actif_variant='inv'),
-            'shap_values_v2_PEN': lambda: self.compute_shap(valid_loader, version='v2', actif_variant='robust'),
+            # print("Running Time-Efficient SHAP...")
+            'shap_time_MEAN': lambda: self.compute_shap(valid_loader, background_size=5, nsamples=20,
+                                                        explainer_type='gradient', actif_variant='MEAN'),
+            'shap_time_MEANSTD': lambda: self.compute_shap(valid_loader, background_size=5, nsamples=20,
+                                                           explainer_type='gradient', actif_variant='MEANSTD'),
+            'shap_time_INV': lambda: self.compute_shap(valid_loader, background_size=5, nsamples=20,
+                                                       explainer_type='gradient', actif_variant='INV'),
+            'shap_time_PEN': lambda: self.compute_shap(valid_loader, background_size=5, nsamples=20,
+                                                       explainer_type='gradient', actif_variant='PEN'),
 
-            'shap_values_v3_MEAN': lambda: self.compute_shap(valid_loader, version='v3', actif_variant='mean'),
-            'shap_values_v3_MEANSTD': lambda: self.compute_shap(valid_loader, version='v3', actif_variant='meanstd'),
-            'shap_values_v3_INV': lambda: self.compute_shap(valid_loader, version='v3', actif_variant='inv'),
-            'shap_values_v3_PEN': lambda: self.compute_shap(valid_loader, version='v3', actif_variant='robust'),
+            # print("Running High-Precision SHAP...")
+            'shap_prec_MEAN': lambda: self.compute_shap(valid_loader, background_size=50, nsamples=1000,
+                                                        explainer_type='deep', actif_variant='MEAN'),
+            'shap_prec_MEANSTD': lambda: self.compute_shap(valid_loader, background_size=50, nsamples=1000,
+                                                           explainer_type='deep', actif_variant='MEANSTD'),
+            'shap_prec_INV': lambda: self.compute_shap(valid_loader, background_size=50, nsamples=1000,
+                                                       explainer_type='deep', actif_variant='INV'),
+            'shap_prec_PEN': lambda: self.compute_shap(valid_loader, background_size=50, nsamples=1000,
+                                                       explainer_type='deep', actif_variant='PEN'),
 
             # DeepLIFT Methods with Zero, Random, and Mean Baseline Types
-            'deeplift_zero_MEAN': lambda: self.compute_deeplift(valid_loader, baseline_type='zero',
-                                                                actif_variant='mean'),
-            'deeplift_zero_MEANSTD': lambda: self.compute_deeplift(valid_loader, baseline_type='zero',
-                                                                   actif_variant='meanstd'),
-            'deeplift_zero_INV': lambda: self.compute_deeplift(valid_loader, baseline_type='zero', actif_variant='inv'),
-            'deeplift_zero_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='zero',
-                                                               actif_variant='robust'),
+            'deeplift_zero_MEAN': lambda: self.compute_deeplift(valid_loader, baseline_type='ZEROES',
+                                                                actif_variant='MEAN'),
+            'deeplift_zero_MEANSTD': lambda: self.compute_deeplift(valid_loader, baseline_type='ZEROES',
+                                                                   actif_variant='MEANSTD'),
+            'deeplift_zero_INV': lambda: self.compute_deeplift(valid_loader, baseline_type='ZEROES',
+                                                               actif_variant='INV'),
+            'deeplift_zero_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='ZEROES',
+                                                               actif_variant='PEN'),
 
-            'deeplift_random_MEAN': lambda: self.compute_deeplift(valid_loader, baseline_type='random',
-                                                                  actif_variant='mean'),
-            'deeplift_random_MEANSTD': lambda: self.compute_deeplift(valid_loader, baseline_type='random',
-                                                                     actif_variant='meanstd'),
-            'deeplift_random_INV': lambda: self.compute_deeplift(valid_loader, baseline_type='random',
-                                                                 actif_variant='inv'),
-            'deeplift_random_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='random',
-                                                                 actif_variant='robust'),
+            'deeplift_random_MEAN': lambda: self.compute_deeplift(valid_loader, baseline_type='RANDOM',
+                                                                  actif_variant='MEAN'),
+            'deeplift_random_MEANSTD': lambda: self.compute_deeplift(valid_loader, baseline_type='RANDOM',
+                                                                     actif_variant='MEANSTD'),
+            'deeplift_random_INV': lambda: self.compute_deeplift(valid_loader, baseline_type='RANDOM',
+                                                                 actif_variant='INV'),
+            'deeplift_random_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='RANDOM',
+                                                                 actif_variant='PEN'),
 
-            'deeplift_mean_MEAN': lambda: self.compute_deeplift(valid_loader, baseline_type='mean',
-                                                                actif_variant='mean'),
-            'deeplift_mean_MEANSTD': lambda: self.compute_deeplift(valid_loader, baseline_type='mean',
-                                                                   actif_variant='meanstd'),
-            'deeplift_mean_INV': lambda: self.compute_deeplift(valid_loader, baseline_type='mean',
-                                                               actif_variant='inv'),
-            'deeplift_mean_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='mean',
-                                                               actif_variant='robust'),
+            'deeplift_mean_MEAN': lambda: self.compute_deeplift(valid_loader, baseline_type='MEAN',
+                                                                actif_variant='MEAN'),
+            'deeplift_mean_MEANSTD': lambda: self.compute_deeplift(valid_loader, baseline_type='MEAN',
+                                                                   actif_variant='MEANSTD'),
+            'deeplift_mean_INV': lambda: self.compute_deeplift(valid_loader, baseline_type='MEAN',
+                                                               actif_variant='INV'),
+            'deeplift_mean_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='MEAN',
+                                                               actif_variant='PEN'),
 
             # NISP Methods (v1, v2, v3)
-            'nisp_v1_MEAN': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='mean'),
-            'nisp_v1_MEANSTD': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='meanstd'),
-            'nisp_v1_INV': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='inv'),
-            'nisp_v1_PEN': lambda: self.compute_nisp(valid_loader, version='v1', actif_variant='robust'),
+            'deepactif_input_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='input',
+                                                              actif_variant='MEAN'),
+            'deepactif_input_MEANSTD': lambda: self.compute_nisp(valid_loader, hook_location='input',
+                                                                 actif_variant='MEANSTD'),
+            'deepactif_input_INV': lambda: self.compute_nisp(valid_loader, hook_location='input', actif_variant='INV'),
+            'deepactif_input_PEN': lambda: self.compute_nisp(valid_loader, hook_location='input', actif_variant='PEN'),
 
-            'nisp_v2_MEAN': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='mean'),
-            'nisp_v2_MEANSTD': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='meanstd'),
-            'nisp_v2_INV': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='inv'),
-            'nisp_v2_PEN': lambda: self.compute_nisp(valid_loader, version='v2', actif_variant='robust'),
+            'deepactif_lstm_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='MEAN'),
+            'deepactif_lstm_MEANSTD': lambda: self.compute_nisp(valid_loader, hook_location='lstm',
+                                                                actif_variant='MEANSTD'),
+            'deepactif_LSTM_INV': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='INV'),
+            'deepactif_LSTM_PEN': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='PEN'),
 
-            'nisp_v3_MEAN': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='mean'),
-            'nisp_v3_MEANSTD': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='meanstd'),
-            'nisp_v3_INV': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='inv'),
-            'nisp_v3_PEN': lambda: self.compute_nisp(valid_loader, version='v3', actif_variant='robust'),
+            'deepactif_penultimate_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+                                                                    actif_variant='MEAN'),
+            'deepactif_penultimate_MEANSTD': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+                                                                       actif_variant='MEANSTD'),
+            'deepactif_penultimate_INV': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+                                                                   actif_variant='INV'),
+            'deepactif_penultimate_PEN': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+                                                                   actif_variant='PEN'),
         }
 
         return method_functions.get(method, None)
@@ -414,7 +430,6 @@ class FeatureRankingsCreator:
         weighted_importance = mean_activation * std_activation  # Multiply mean by stddev to get importance
         return weighted_importance
 
-
     def calculate_actif_inverted_weighted_mean(self, activation):
         """
         Calculate the importance by weighting high mean activations and low variability (stddev).
@@ -473,7 +488,7 @@ class FeatureRankingsCreator:
         Ablation
     '''
 
-    def ablation(self, valid_loader, actif_variant='mean'):
+    def ablation(self, valid_loader, actif_variant):
 
         self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
@@ -511,13 +526,13 @@ class FeatureRankingsCreator:
             # expanded_attributions = aggregated_attributions.repeat(input_batch.size(1), 1)  # Repeat for time steps
 
             # Call ACTIF variant (e.g., actif_mean) to aggregate the results
-            if actif_variant == 'mean':
+            if actif_variant == 'MEAN':
                 importance = self.calculate_actif_mean(aggregated_attributions.cpu().numpy())
-            elif actif_variant == 'meanstd':
+            elif actif_variant == 'MEANSTD':
                 importance = self.calculate_actif_meanstddev(aggregated_attributions.cpu().numpy())
-            elif actif_variant == 'inv':
+            elif actif_variant == 'INV':
                 importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions.cpu().numpy())
-            elif actif_variant == 'robust':
+            elif actif_variant == 'PEN':
                 importance = self.calculate_actif_robust(aggregated_attributions.cpu().numpy())
             else:
                 raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
@@ -544,7 +559,7 @@ class FeatureRankingsCreator:
         Deep Lift
     '''
 
-    def compute_deeplift(self, valid_loader, baseline_type='zero', actif_variant='mean'):
+    def compute_deeplift(self, valid_loader, baseline_type, actif_variant):
         """
         Computes feature importance using DeepLIFT and aggregates it based on the selected ACTIF variant.
         """
@@ -560,11 +575,11 @@ class FeatureRankingsCreator:
             inputs = inputs.to(device)
 
             # Define the baseline based on the selected baseline_type
-            if baseline_type == 'zero':
+            if baseline_type == 'ZEROES':
                 baselines = torch.zeros_like(inputs)  # Zero baseline
-            elif baseline_type == 'random':
+            elif baseline_type == 'RANDOM':
                 baselines = torch.rand_like(inputs)  # Random baseline (uniform between 0 and 1)
-            elif baseline_type == 'mean':
+            elif baseline_type == 'MEAN':
                 # Compute the mean baseline (per feature) along dimension 0
                 mean_baseline = torch.mean(inputs, dim=0)
                 # Expand the mean_baseline to match the shape of the input
@@ -595,13 +610,13 @@ class FeatureRankingsCreator:
             aggregated_attributions = np.concatenate(all_attributions, axis=0)  # Shape: [num_samples, num_features]
 
             # Now, apply the selected ACTIF variant for feature importance aggregation
-            if actif_variant == 'mean':
+            if actif_variant == 'MEAN':
                 importance = self.calculate_actif_mean(aggregated_attributions)
-            elif actif_variant == 'meanstd':
+            elif actif_variant == 'MEANSTD':
                 importance = self.calculate_actif_meanstddev(aggregated_attributions)
-            elif actif_variant == 'inv':
+            elif actif_variant == 'INV':
                 importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions)
-            elif actif_variant == 'robust':
+            elif actif_variant == 'PEN':
                 importance = self.calculate_actif_robust(aggregated_attributions)
             else:
                 raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
@@ -625,28 +640,11 @@ class FeatureRankingsCreator:
         NISP
     '''
 
-    def compute_nisp(self, valid_loader, version='v1', actif_variant='mean'):
+    def compute_nisp(self, valid_loader, hook_location, actif_variant):
         """
-        Perform NISP with different sensitivity versions:
-        Version 1: Use activations before LSTM
-        Version 2: Use activations after LSTM
-        Version 3: Use activations just before the output layer
-        """
-        if version == 'v1':
-            return self.compute_nisp_configured(valid_loader, hook_location='before_lstm', actif_variant=actif_variant)
-        elif version == 'v2':
-            return self.compute_nisp_configured(valid_loader, hook_location='after_lstm', actif_variant=actif_variant)
-        elif version == 'v3':
-            return self.compute_nisp_configured(valid_loader, hook_location='before_output',
-                                                actif_variant=actif_variant)
-        else:
-            raise ValueError(f"Unknown version type: {version}")
-
-    def compute_nisp_configured(self, valid_loader, hook_location='before_lstm', actif_variant='mean'):
-        """
-        NISP calculation with different layer hooks based on version.
-        Args:
-            hook_location: Where to hook into the model ('before_lstm', 'after_lstm', 'before_output').
+            NISP calculation with different layer hooks based on version.
+            Args:
+                hook_location: Where to hook into the model ('before_lstm', 'after_lstm', 'before_output').
         """
         activations = []
         all_attributions = []
@@ -663,19 +661,19 @@ class FeatureRankingsCreator:
             return hook
 
         # Set hooks based on the chosen version
-        if hook_location == 'before_lstm':
+        if hook_location == 'input':
             # Hook into the input before LSTM (you may need to adjust depending on your model architecture)
             for name, layer in self.currentModel.named_modules():
                 if isinstance(layer, torch.nn.LSTM):  # Assuming LSTM is the first main layer
                     layer.register_forward_hook(save_activation(name))  # Use forward hook instead of forward pre-hook
                     break
-        elif hook_location == 'after_lstm':
+        elif hook_location == 'lstm':
             # Hook into the output of the LSTM layer
             for name, layer in self.currentModel.named_modules():
                 if isinstance(layer, torch.nn.LSTM):
                     layer.register_forward_hook(save_activation(name))
                     break
-        elif hook_location == 'before_output':
+        elif hook_location == 'penultimate':
             # Hook into the layer just before the final output layer (often fully connected)
             for name, layer in self.currentModel.named_modules():
                 if isinstance(layer, torch.nn.Linear):  # Assuming the output is from a dense/linear layer
@@ -726,13 +724,13 @@ class FeatureRankingsCreator:
         print(f"Shape of all_attributions: {all_attributions.shape}")
 
         # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
-        if actif_variant == 'mean':
+        if actif_variant == 'MEAN':
             importance = self.calculate_actif_mean(all_attributions)
-        elif actif_variant == 'meanstd':
+        elif actif_variant == 'MEANSTD':
             importance = self.calculate_actif_meanstddev(all_attributions)
-        elif actif_variant == 'inv':
+        elif actif_variant == 'INV':
             importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
-        elif actif_variant == 'robust':
+        elif actif_variant == 'PEN':
             importance = self.calculate_actif_robust(all_attributions)
         else:
             raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
@@ -752,22 +750,11 @@ class FeatureRankingsCreator:
 
         return results
 
-
     '''
     Integrated Gradients
     '''
 
-    def compute_intgrad(self, valid_loader, version='v1', actif_variant='mean'):
-        if version == 'v1':
-            return self.compute_intgrad_configured(valid_loader, baseline_type='zeroes', actif_variant=actif_variant)
-        elif version == 'v2':
-            return self.compute_intgrad_configured(valid_loader, baseline_type='random', actif_variant=actif_variant)
-        elif version == 'v3':
-            return self.compute_intgrad_configured(valid_loader, baseline_type='mean', actif_variant=actif_variant)
-        else:
-            raise ValueError(f"Unknown baseline type: {version}")
-
-    def compute_intgrad_configured(self, valid_loader, baseline_type='zeroes', steps=100, actif_variant='mean'):
+    def compute_intgrad(self, valid_loader, baseline, actif_variant, steps=100):
         all_attributions = []  # To accumulate attributions for all samples
 
         # Load the model and switch to evaluation mode
@@ -780,14 +767,14 @@ class FeatureRankingsCreator:
             inputs = inputs.to(device)
 
             # Define baselines based on the type
-            if baseline_type == 'zeroes':
+            if baseline == 'ZEROES':
                 baseline = torch.zeros_like(inputs)
-            elif baseline_type == 'random':
+            elif baseline == 'RANDOM':
                 baseline = torch.randn_like(inputs)
-            elif baseline_type == 'mean':
+            elif baseline == 'MEAN':
                 baseline = torch.mean(inputs, dim=0, keepdim=True).expand_as(inputs)
             else:
-                raise ValueError(f"Unsupported baseline type: {baseline_type}")
+                raise ValueError(f"Unsupported baseline type: {baseline}")
 
             # Create Integrated Gradients explainer using self.currentModel
             explainer = IntegratedGradients(lambda input_batch: self.currentModel(input_batch))
@@ -816,13 +803,13 @@ class FeatureRankingsCreator:
                                                      axis=0)  # Shape will be [total_samples, features]
 
             # Apply the selected ACTIF variant for feature importance aggregation
-            if actif_variant == 'mean':
+            if actif_variant == 'MEAN':
                 importance = self.calculate_actif_mean(aggregated_attributions)
-            elif actif_variant == 'meanstd':
+            elif actif_variant == 'MEANSTD':
                 importance = self.calculate_actif_meanstddev(aggregated_attributions)
-            elif actif_variant == 'inv':
+            elif actif_variant == 'INV':
                 importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions)
-            elif actif_variant == 'robust':
+            elif actif_variant == 'PEN':
                 importance = self.calculate_actif_robust(aggregated_attributions)
             else:
                 raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
@@ -842,118 +829,11 @@ class FeatureRankingsCreator:
             print("No batches processed.")
             return None
 
-    #
-    # def compute_intgrad(self, valid_loader, version='v1', actif_variant='mean'):
-    #     if version == 'v1':
-    #         return self.compute_intgrad_configured(valid_loader, baseline_type='zeroes', actif_variant=actif_variant)
-    #     elif version == 'v2':
-    #         return self.compute_intgrad_configured(valid_loader, baseline_type='random', actif_variant=actif_variant)
-    #     elif version == 'v3':
-    #         return self.compute_intgrad_configured(valid_loader, baseline_type='mean', actif_variant=actif_variant)
-    #     else:
-    #         raise ValueError(f"Unknown baseline type: {version}")
-    #
-    # def compute_intgrad_configured(self, valid_loader, baseline_type='zeroes', steps=100, actif_variant='mean'):
-    #     all_attributions = []  # To accumulate attributions for all samples
-    #
-    #     # Load the model and switch to evaluation mode
-    #     self.load_model(self.currentModelName)
-    #     print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
-    #     self.currentModel.eval()
-    #
-    #     # Loop over validation loader
-    #     for inputs, _ in valid_loader:
-    #         inputs = inputs.to(device)
-    #
-    #         # Define baselines based on the type
-    #         if baseline_type == 'zeroes':
-    #             baseline = torch.zeros_like(inputs)
-    #         elif baseline_type == 'random':
-    #             baseline = torch.randn_like(inputs)
-    #         elif baseline_type == 'mean':
-    #             baseline = torch.mean(inputs, dim=0, keepdim=True).expand_as(inputs)
-    #         else:
-    #             raise ValueError(f"Unsupported baseline type: {baseline_type}")
-    #
-    #         # Create Integrated Gradients explainer using self.currentModel
-    #         explainer = IntegratedGradients(lambda input_batch: self.currentModel(input_batch))
-    #
-    #         # Calculate attributions
-    #         with autocast():
-    #             with torch.no_grad():
-    #                 attributions = explainer.attribute(inputs, baselines=baseline, n_steps=steps)
-    #
-    #         # Move attributions to CPU and convert to NumPy
-    #         attributions_np = attributions.detach().cpu().numpy()  # Shape should be [batch_size, time_steps, features]
-    #
-    #         # Flatten time steps by summing across the time dimension (axis 1)
-    #         attributions_np = attributions_np.sum(axis=1)  # Shape will be [batch_size, features]
-    #
-    #         # Store the attributions for this batch
-    #         all_attributions.append(attributions_np)
-    #
-    #         # Clear memory after processing the batch
-    #         torch.cuda.empty_cache()
-    #
-    #     # Final processing of attributions if there were samples processed
-    #     if all_attributions:
-    #         # Concatenate all attributions from different batches
-    #         aggregated_attributions = np.concatenate(all_attributions,
-    #                                                  axis=0)  # Shape will be [total_samples, features]
-    #
-    #         # Apply the selected ACTIF variant for feature importance aggregation
-    #         if actif_variant == 'mean':
-    #             importance = self.calculate_actif_mean(aggregated_attributions)
-    #         elif actif_variant == 'meanstd':
-    #             importance = self.calculate_actif_meanstddev(aggregated_attributions)
-    #         elif actif_variant == 'inv':
-    #             importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions)
-    #         elif actif_variant == 'robust':
-    #             importance = self.calculate_actif_robust(aggregated_attributions)
-    #         else:
-    #             raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
-    #
-    #         # Store the attributions as a dataframe for processing
-    #         attributions_df = pd.DataFrame(importance, index=self.selected_features)
-    #         # Compute the mean absolute attributions for each feature
-    #         mean_abs_attributions = attributions_df.abs().mean()
-    #         # Sort the features by their mean absolute attributions
-    #         feature_importance = mean_abs_attributions.sort_values(ascending=False)
-    #
-    #         # Return the feature importance as a list of dictionaries
-    #         results = [{'feature': feature, 'attribution': attribution} for feature, attribution in
-    #                    feature_importance.items()]
-    #         return results
-    #     else:
-    #         print("No batches processed.")
-    #         return None
-
     '''
         SHAP Values
     '''
 
-    def compute_shap(self, valid_loader, version='v1', actif_variant='mean'):
-        # Configure SHAP settings based on the variant version
-        if version == 'v1':
-            # Memory-Efficient Variant: GradientExplainer with reduced samples and background
-            print("Running Memory-Efficient SHAP...")
-            return self.compute_shap_configured(valid_loader, background_size=10, nsamples=50,
-                                                explainer_type='gradient', actif_variant=actif_variant)
-        elif version == 'v2':
-            # Time-Efficient Variant: KernelExplainer with small background and samples
-            print("Running Time-Efficient SHAP...")
-            return self.compute_shap_configured(valid_loader, background_size=5, nsamples=20, explainer_type='gradient',
-                                                actif_variant=actif_variant)
-        elif version == 'v3':
-            # High-Precision Variant: DeepExplainer with large background and high nsamples
-            print("Running High-Precision SHAP...")
-            return self.compute_shap_configured(valid_loader, background_size=50, nsamples=1000, explainer_type='deep',
-                                                actif_variant=actif_variant)
-        else:
-            raise ValueError(f"Unknown version: {version}")
-
-    def compute_shap_configured(self, valid_loader, background_size=20, nsamples=100, explainer_type='kernel',
-                                actif_variant='mean'):
+    def compute_shap(self, valid_loader, background_size, nsamples, explainer_type, actif_variant):
         self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
 
@@ -1000,13 +880,13 @@ class FeatureRankingsCreator:
         mean_shap_values_timesteps = np.mean(shap_values_reshaped, axis=1)
 
         # Apply the selected ACTIF variant for feature importance aggregation
-        if actif_variant == 'mean':
+        if actif_variant == 'MEAN':
             importance = self.calculate_actif_mean(mean_shap_values_timesteps)
-        elif actif_variant == 'meanstd':
+        elif actif_variant == 'MEANSTD':
             importance = self.calculate_actif_meanstddev(mean_shap_values_timesteps)
-        elif actif_variant == 'inv':
+        elif actif_variant == 'INV':
             importance = self.calculate_actif_inverted_weighted_mean(mean_shap_values_timesteps)
-        elif actif_variant == 'robust':
+        elif actif_variant == 'PEN':
             importance = self.calculate_actif_robust(mean_shap_values_timesteps)
         else:
             raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
@@ -1024,13 +904,13 @@ class FeatureRankingsCreator:
         return results
 
     # SHUFFLING:
-    def feature_shuffling_importances(self, valid_loader, actif_variant='mean'):
+    def feature_shuffling_importances(self, valid_loader, actif_variant):
         """
         Compute feature importances using feature shuffling and apply ACTIF aggregation.
 
         Args:
             valid_loader: DataLoader for validation data (with sequences).
-            actif_variant: The ACTIF variant to use for aggregation ('mean', 'meanstddev', 'inv',  'robust').
+            actif_variant: The ACTIF variant to use for aggregation ('MEAN', 'meanstddev', 'INV',  'PEN').
 
         Returns:
             List of feature importance based on feature shuffling and the selected ACTIF variant.
@@ -1087,13 +967,13 @@ class FeatureRankingsCreator:
         print(f"Shape of all_attributions: {all_attributions.shape}")
 
         # Apply ACTIF variant for aggregation based on the 'actif_variant' parameter
-        if actif_variant == 'mean':
+        if actif_variant == 'MEAN':
             importance = self.calculate_actif_mean(all_attributions)
-        elif actif_variant == 'meanstd':
+        elif actif_variant == 'MEANSTD':
             importance = self.calculate_actif_meanstddev(all_attributions)
-        elif actif_variant == 'inv':
+        elif actif_variant == 'INV':
             importance = self.calculate_actif_inverted_weighted_mean(all_attributions)
-        elif actif_variant == 'robust':
+        elif actif_variant == 'PEN':
             importance = self.calculate_actif_robust(all_attributions)
         else:
             raise ValueError(f"Unknown ACTIF variant: {actif_variant}")

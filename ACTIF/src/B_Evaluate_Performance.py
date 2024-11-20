@@ -40,7 +40,7 @@ def get_top_features(importances, percentage):
 
 
 def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, num_repetitions=10):
-    percentages = [0.1, 0.2, 0.3]  # , 0.2, 0.3]
+    percentages = [0.1, 0.2, 0.3, 0.4]  # , 0.2, 0.3]
     results = {}
     list_name = f"{modelName}_{dataset.name}_{methodName}"
     results[list_name] = {}
@@ -114,7 +114,7 @@ def test_baseline_model(trainer, modelName, dataset, outputFolder, num_repetitio
     trainer.dataset = dataset
 
     # Perform cross-validation for the baseline
-    full_feature_performance = trainer.cross_validate(num_epochs=500, loocv=False, num_repeats=num_repetitions)
+    full_feature_performance = trainer.cross_validate(num_epochs=500, loocv=True, num_repeats=num_repetitions)
     results['Baseline'] = full_feature_performance
 
     # Save baseline results
