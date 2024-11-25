@@ -76,88 +76,88 @@ class FeatureRankingsCreator:
         self.memory_data = []
         self.methods = [
             # DeepACTIF on input values
-            'deepactif_input_MEAN',
-            'deepactif_input_MEANSTD',
-            'deepactif_input_INV',
-            'deepactif_input_INV',
-
-            # DeepACTIF on LSTM values
-            'deepactif_input_MEAN',
-            'deepactif_input_MEANSTD',
-            'deepactif_LSTM_INV',
-            'deepactif_input_INV',
+            # 'deepactif_input_MEAN',
+            # 'deepactif_input_MEANSTD',
+            # 'deepactif_input_INV',
+            # 'deepactif_input_PEN',
+            #
+            # # DeepACTIF on LSTM values
+            # 'deepactif_lstm_MEAN',
+            # 'deepactif_lstm_MEANSTD',
+            # 'deepactif_lstm_INV',
+            # 'deepactif_lstm_PEN',
 
             # DeepACTIF on penultimate values
-            'deepactif_penultimate_MEAN',
-            'deepactif_penultimate_MEANSTD',
-            'deepactif_penultimate_INV',
-            'deepactif_penultimate_PEN',
+            # 'deepactif_penultimate_MEAN',
+            # 'deepactif_penultimate_MEANSTD',
+            # 'deepactif_penultimate_INV',
+            # 'deepactif_penultimate_PEN',
+            #
+            # # SHUFFLE
+            # 'shuffle_MEAN',
+            # 'shuffle_MEANSTD',
+            # 'shuffle_INV',
+            # 'shuffle_PEN',
+            #
+            # # ABLATION
+            # 'ablation_MEAN',
+            # 'ablation_MEANSTD',
+            # 'ablation_INV',
+            # 'ablation_PEN',
+            #
+            # # Deeplift ZERO Baseline
+            # 'deeplift_zero_MEAN',
+            # 'deeplift_zero_MEANSTD',
+            # 'deeplift_zero_INV',
+            # 'deeplift_zero_PEN',
+            #
+            # # Deeplift Random Baseline
+            # 'deeplift_random_MEAN',
+            # 'deeplift_random_MEANSTD',
+            # 'deeplift_random_INV',
+            # 'deeplift_random_PEN',
+            #
+            # # Deeplift Mean Baseline
+            # 'deeplift_mean_MEAN',
+            # 'deeplift_mean_MEANSTD',
+            # 'deeplift_mean_INV',
+            # 'deeplift_mean_PEN',
+            #
+            # # IntGrad Zeroes Baseline
+            # 'intGrad_zero_MEAN',
+            # 'intGrad_zero_MEANSTD',
+            # 'intGrad_zero_INV',
+            # 'intGrad_zero_PEN',
 
-            # SHUFFLE
-            'shuffle_MEAN',
-            'shuffle_MEANSTD',
-            'shuffle_INV',
-            'shuffle_PEN',
-
-            # ABLATION
-            'ablation_MEAN',
-            'ablation_MEANSTD',
-            'ablation_INV',
-            'ablation_PEN',
-
-            # Deeplift ZERO Baseline
-            'deeplift_zero_MEAN',
-            'deeplift_zero_MEANSTD',
-            'deeplift_zero_INV',
-            'deeplift_zero_PEN',
-
-            # Deeplift Random Baseline
-            'deeplift_random_MEAN',
-            'deeplift_random_MEANSTD',
-            'deeplift_random_INV',
-            'deeplift_random_PEN',
-
-            # Deeplift Mean Baseline
-            'deeplift_mean_MEAN',
-            'deeplift_mean_MEANSTD',
-            'deeplift_mean_INV',
-            'deeplift_mean_PEN',
-
-            # IntGrad Zeroes Baseline
-            'intGrad_zero_MEAN',
-            'intGrad_zero_MEANSTD',
-            'intGrad_zero_INV',
-            'intGrad_zero_PEN',
-
-            # Intgrad Random Baseline
-            'intGrad_random_MEAN',
-            'intGrad_random_MEANSTD',
-            'intGrad_random_INV',
-            'intGrad_random_PEN',
-
-            # Intgrad Mean Baseline
-            'intGrad_mean_MEAN',
-            'intGrad_mean_MEANSTD',
-            'intGrad_mean_INV',
-            'intGrad_mean_PEN',
+            # # Intgrad Random Baseline
+            # 'intGrad_random_MEAN',
+            # 'intGrad_random_MEANSTD',
+            # 'intGrad_random_INV',
+            # 'intGrad_random_PEN',
+            #
+            # # Intgrad Mean Baseline
+            # 'intGrad_mean_MEAN',
+            # 'intGrad_mean_MEANSTD',
+            # 'intGrad_mean_INV',
+            # 'intGrad_mean_PEN',
 
             # SHAP v1 ACTIF Aggregation Variants
-            'shap_mem_MEAN',
-            'shap_mem_MEANSTD',
-            'shap_mem_INV',
-            'shap_mem_PEN',
-
-            # SHAP v2 ACTIF Aggregation Variants
-            'shap_time_MEAN',
-            'shap_time_MEANSTD',
-            'shap_time_INV',
-            'shap_time_PEN',
-
-            # SHAP v3 ACTIF Aggregation Variants
-            'shap_prec_MEAN',
-            'shap_prec_MEANSTD',
-            'shap_prec_INV',
-            'shap_prec_PEN',
+            # 'shap_mem_MEAN',
+            # 'shap_mem_MEANSTD',
+            # 'shap_mem_INV',
+            # 'shap_mem_PEN',
+            #
+            # # SHAP v2 ACTIF Aggregation Variants
+            # 'shap_time_MEAN',
+            # 'shap_time_MEANSTD',
+            # 'shap_time_INV',
+            # 'shap_time_PEN',
+            #
+            # # SHAP v3 ACTIF Aggregation Variants
+            # 'shap_prec_MEAN',
+            # 'shap_prec_MEANSTD',
+            # 'shap_prec_INV',
+            # 'shap_prec_PEN',
         ]
 
     def load_model(self, modelName):
@@ -171,7 +171,7 @@ class FeatureRankingsCreator:
 
     # 2.
     def process_methods(self):
-        for method in self.methods:
+        for method in reversed(self.methods):
             print(f"Evaluating method: {method}")
             aggregated_importances = self.calculate_ranked_list_by_method(method=method)
             self.sort_importances_based_on_attribution(aggregated_importances, method=method)
@@ -248,8 +248,7 @@ class FeatureRankingsCreator:
             'intGrad_random_PEN': lambda: self.compute_intgrad(valid_loader, baseline='RANDOM', actif_variant='PEN'),
 
             'intGrad_mean_MEAN': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='MEAN'),
-            'intGrad_mean_MEANSTD': lambda: self.compute_intgrad(valid_loader, baseline='MEAN',
-                                                                 actif_variant='MEANSTD'),
+            'intGrad_mean_MEANSTD': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='MEANSTD'),
             'intGrad_mean_INV': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='INV'),
             'intGrad_mean_PEN': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='PEN'),
 
@@ -323,8 +322,8 @@ class FeatureRankingsCreator:
             'deepactif_lstm_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='MEAN'),
             'deepactif_lstm_MEANSTD': lambda: self.compute_nisp(valid_loader, hook_location='lstm',
                                                                 actif_variant='MEANSTD'),
-            'deepactif_LSTM_INV': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='INV'),
-            'deepactif_LSTM_PEN': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='PEN'),
+            'deepactif_lstm_INV': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='INV'),
+            'deepactif_lstm_PEN': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='PEN'),
 
             'deepactif_penultimate_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
                                                                     actif_variant='MEAN'),
@@ -754,13 +753,16 @@ class FeatureRankingsCreator:
     Integrated Gradients
     '''
 
-    def compute_intgrad(self, valid_loader, baseline, actif_variant, steps=100):
+    def compute_intgrad(self, valid_loader, baseline, actif_variant):
         all_attributions = []  # To accumulate attributions for all samples
-
+        steps = 100
         # Load the model and switch to evaluation mode
         self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
         self.currentModel.eval()
+        # baseline = 'MEAN'
+
+        print("Baseline is", baseline)
 
         # Loop over validation loader
         for inputs, _ in valid_loader:
@@ -768,11 +770,11 @@ class FeatureRankingsCreator:
 
             # Define baselines based on the type
             if baseline == 'ZEROES':
-                baseline = torch.zeros_like(inputs)
+                baseline_tensor = torch.zeros_like(inputs)
             elif baseline == 'RANDOM':
-                baseline = torch.randn_like(inputs)
+                baseline_tensor = torch.randn_like(inputs)
             elif baseline == 'MEAN':
-                baseline = torch.mean(inputs, dim=0, keepdim=True).expand_as(inputs)
+                baseline_tensor = torch.mean(inputs, dim=0, keepdim=True).expand_as(inputs)
             else:
                 raise ValueError(f"Unsupported baseline type: {baseline}")
 
@@ -782,7 +784,7 @@ class FeatureRankingsCreator:
             # Calculate attributions
             with autocast():
                 with torch.no_grad():
-                    attributions = explainer.attribute(inputs, baselines=baseline, n_steps=steps)
+                    attributions = explainer.attribute(inputs, baselines=baseline_tensor, n_steps=steps)
 
             # Move attributions to CPU and convert to NumPy
             attributions_np = attributions.detach().cpu().numpy()  # Shape should be [batch_size, time_steps, features]
