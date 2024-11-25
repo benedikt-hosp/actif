@@ -39,7 +39,7 @@ def get_top_features(importances, percentage):
     return top_features
 
 
-def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, num_repetitions=10):
+def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, num_repetitions=2):
     percentages = [0.1, 0.2, 0.3, 0.4]  # , 0.2, 0.3]
     results = {}
     list_name = f"{modelName}_{dataset.name}_{methodName}"
@@ -67,7 +67,7 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
         trainer.setup(feature_count=feature_count, feature_names=remaining_features)
 
         # Perform cross-validation and get the performance results for each run
-        fold_accuracies = trainer.cross_validate(num_epochs=300, loocv=False, num_repeats=num_repetitions)
+        fold_accuracies = trainer.cross_validate(num_epochs=150, loocv=False, num_repeats=num_repetitions)
 
         # Calculate the mean and standard deviation of the MAE values
         mean_performance = np.mean(fold_accuracies)
@@ -175,7 +175,7 @@ if __name__ == '__main__':
     # Setup Model
     modelName = "Foval"
     datasetName = "robustvision"
-    num_repetitions = 10  # Define the number of repetitions for 80/20 splits
+    num_repetitions = 25  # Define the number of repetitions for 80/20 splits
 
     dataset = RobustVisionDataset(data_dir="../data/input/robustvision/", sequence_length=10)
 

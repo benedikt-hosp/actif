@@ -82,10 +82,10 @@ class FeatureRankingsCreator:
             'deepactif_input_INV',
 
             # DeepACTIF on LSTM values
-            'deepactif_input_MEAN',
-            'deepactif_input_MEANSTD',
-            'deepactif_LSTM_INV',
-            'deepactif_input_INV',
+            'deepactif_lstm_MEAN',
+            'deepactif_lstm_MEANSTD',
+            'deepactif_lstm_INV',
+            'deepactif_lstm_INV',
 
             # DeepACTIF on penultimate values
             'deepactif_penultimate_MEAN',
@@ -768,11 +768,11 @@ class FeatureRankingsCreator:
 
             # Define baselines based on the type
             if baseline == 'ZEROES':
-                baseline = torch.zeros_like(inputs)
+                baseline_type = torch.zeros_like(inputs)
             elif baseline == 'RANDOM':
-                baseline = torch.randn_like(inputs)
+                baseline_type = torch.randn_like(inputs)
             elif baseline == 'MEAN':
-                baseline = torch.mean(inputs, dim=0, keepdim=True).expand_as(inputs)
+                baseline_type = torch.mean(inputs, dim=0, keepdim=True).expand_as(inputs)
             else:
                 raise ValueError(f"Unsupported baseline type: {baseline}")
 
@@ -782,7 +782,7 @@ class FeatureRankingsCreator:
             # Calculate attributions
             with autocast():
                 with torch.no_grad():
-                    attributions = explainer.attribute(inputs, baselines=baseline, n_steps=steps)
+                    attributions = explainer.attribute(inputs, baselines=baseline_type, n_steps=steps)
 
             # Move attributions to CPU and convert to NumPy
             attributions_np = attributions.detach().cpu().numpy()  # Shape should be [batch_size, time_steps, features]

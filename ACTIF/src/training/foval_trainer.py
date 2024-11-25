@@ -107,7 +107,7 @@ class FOVALTrainer:
         print(f"Tensors saved to {save_path_tensors}")
         print(f"NumPy arrays saved to {save_path_numpy}")
 
-    def cross_validate(self, num_epochs=500, loocv=False, num_repeats=5):
+    def cross_validate(self, num_epochs=500, loocv=False, num_repeats=2):
         """
         Perform cross-validation on the dataset.
         """
@@ -117,41 +117,41 @@ class FOVALTrainer:
             kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=42)
             fold_accuracies = []
 
-            for fold, (train_idx, val_idx) in enumerate(kf.split(self.dataset.subject_list)):
+            for fold, (train_index, val_index) in enumerate(kf.split(self.dataset.subject_list)):
                 print(f"\n\nStarting Fold {fold + 1}/{self.n_splits}")
+                # Initialize a list to store MAE for each fold
+                # fold_accuracies = []
+                # Get training and validation subjects using the indices provided by KFold
+                train_subjects = [self.dataset.subject_list[i] for i in train_index]
+                val_subjects = [self.dataset.subject_list[i] for i in val_index]
 
-                # Use indices to select subject IDs and convert them to lists
-                train_subjects = list(self.dataset.subject_list[train_idx])
-                val_subjects = list(self.dataset.subject_list[val_idx])
+                # Set the current iteration number as fold
+                self.current_fold = fold
 
-                # Set the current fold number
-                self.current_fold = fold + 1
-
-                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=True)
+                # Perform training and validation for this fold
+                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=False)
                 fold_accuracies.append(fold_mae)
-                print(f"Fold {fold + 1} MAE: {fold_mae}")
-                average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-                print(f"Average Validation MAE across folds: {average_accuracy}")
+
+                print(f"Fold {fold} MAE: {fold_mae}")
                 self.reset_metrics()
 
-            # Calculate overall performance on whole dataset
-            best_fold = min(fold_accuracies)
-            print(f"Best Fold with MAE: {best_fold}")
-            average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-            print(f"Average Cross-Validation MSE: {average_accuracy}")
-            return average_accuracy
+            # # Calculate overall performance on whole dataset
+            # best_fold = min(fold_accuracies)
+            # print(f"Best Fold with MAE: {best_fold}")
+            # average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
+            # print(f"Average Cross-Validation MSE: {average_accuracy}")
+            # return average_accuracy
         else:
 
-            # Initialize a list to store MAE for each fold
-            fold_accuracies = []
 
             # Set up 5-Fold Cross-Validation
             kf = KFold(n_splits=num_repeats, shuffle=True, random_state=42)
+            fold_accuracies = []
 
             # Iterate over each fold
             for fold, (train_index, val_index) in enumerate(kf.split(self.dataset.subject_list), 1):
                 print(f"\n\nStarting Fold {fold}/{num_repeats}")
-
+                # Initialize a list to store MAE for each fold
                 # Get training and validation subjects using the indices provided by KFold
                 train_subjects = [self.dataset.subject_list[i] for i in train_index]
                 val_subjects = [self.dataset.subject_list[i] for i in val_index]
