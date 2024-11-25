@@ -69,20 +69,24 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
         # Perform cross-validation and get the performance results for each run
         fold_accuracies = trainer.cross_validate(num_epochs=150, loocv=False, num_repeats=num_repetitions)
 
-        # Calculate the mean and standard deviation of the MAE values
+        # Calculate mean and standard deviation
         mean_performance = np.mean(fold_accuracies)
         std_dev_performance = np.std(fold_accuracies, ddof=1)
 
-        # Dynamically create the result line based on the number of runs
-        runs_values = ", ".join([f"{fold_accuracies[i]:.4f}" for i in range(num_repetitions)])
-        result_line = (
-            f"{list_name}, {percent * 100}%, "
-            f"{runs_values}, {mean_performance:.4f}, {std_dev_performance:.4f}\n"
-        )
+        # Create the result line
+        runs_values = ", ".join([f"{accuracy:.4f}" for accuracy in fold_accuracies])
+        result_line = (f"{list_name}, {percent * 100:.0f}%, "
+                       f"{runs_values}, {mean_performance:.4f}, {std_dev_performance:.4f}\n")
 
-        # Save the results to the file
-        with open(save_path, "a") as file:
-            file.write(result_line)
+        # Write results to file
+        try:
+            if not os.path.exists(save_path):
+                with open(save_path, "w") as file:
+                    file.write("ListName, Percentage, Runs, Mean, StdDev\n")  # Header
+            with open(save_path, "a") as file:
+                file.write(result_line)
+        except Exception as e:
+            print(f"Error writing to file: {e}")
 
         print(result_line)
 
@@ -114,7 +118,7 @@ def test_baseline_model(trainer, modelName, dataset, outputFolder, num_repetitio
     trainer.dataset = dataset
 
     # Perform cross-validation for the baseline
-    full_feature_performance = trainer.cross_validate(num_epochs=500, loocv=True, num_repeats=num_repetitions)
+    full_feature_performance = trainer.cross_validate(num_epochs=500, loocv=False, num_repeats=num_repetitions)
     results['Baseline'] = full_feature_performance
 
     # Save baseline results
@@ -195,7 +199,7 @@ if __name__ == '__main__':
     # baseline_performance = test_baseline_model(trainer, modelName, dataset, save_path, num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
-    for file_name in reversed(os.listdir(folder_path)):
+    for file_name in os.listdir(folder_path):
         if file_name.endswith(".csv"):
             file_path = os.path.join(folder_path, file_name)
             method = file_name.replace('.csv', '')  # Extract method name from file
