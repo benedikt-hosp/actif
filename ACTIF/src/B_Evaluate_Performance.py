@@ -199,7 +199,7 @@ if __name__ == '__main__':
     # baseline_performance = test_baseline_model(trainer, modelName, dataset, save_path, num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
-    for file_name in os.listdir(folder_path):
+    for file_name in reversed(os.listdir(folder_path)):
         if file_name.endswith(".csv"):
             file_path = os.path.join(folder_path, file_name)
             method = file_name.replace('.csv', '')  # Extract method name from file
