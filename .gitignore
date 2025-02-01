@@ -1,0 +1,109 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+.eggs/
+*.egg
+build/
+dist/
+wheels/
+*.wheel
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jupyter Notebook files
+.ipynb_checkpoints/
+
+# PyCharm project files
+.idea/
+./ACTIF/results/
+./ACTIF/data/input
+
+# VS Code project files
+.vscode/
+
+# Pytest
+.cache/
+
+# Django stuff
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff
+instance/
+.webassets-cache
+
+# Scrapy stuff
+.scrapy/
+
+# Sphinx documentation
+docs/_build/
+
+# Pyre type checker
+.pyre/
+
+# mypy type checker
+.mypy_cache/
+
+# IDE config files
+*.sublime-project
+*.sublime-workspace
+
+# Anaconda environment files
+*.env
+*.conda
+*.pkl
+*.pyo
+
+# Python package files
+*.pyd
+*.pyc
+*.pyo
+*.pdb
+*.pdbrc
+
+# C extensions
+*.so
+
+# Environment variables
+.env
+.env.*
+
+# Compiled source
+*.o
+*.a
+*.d
+
+# Other files
+*.DS_Store
+/src/results/
+/src/cache_dir/
