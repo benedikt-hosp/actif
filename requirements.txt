@@ -110,3 +110,8 @@ webencodings==0.5.1
 websocket-client==1.8.0
 widgetsnbextension==4.0.13
 zstandard==0.23.0
+
+numpy~=1.26.4
+shap~=0.46.0
+tqdm~=4.67.1
+captum~=0.7.0

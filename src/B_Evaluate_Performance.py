@@ -16,8 +16,8 @@ torch.backends.cudnn.enabled = True
 
 
 import gc
-from models.foval.FOVAL import FOVAL
-from models.foval.foval_preprocessor import input_features
+from models.FOVAL.FOVAL import FOVAL
+from models.FOVAL.foval_preprocessor import input_features
 from src.dataset_classes.robustVision_dataset import RobustVisionDataset
 import warnings
 from src.training.foval_trainer import FOVALTrainer
@@ -31,7 +31,7 @@ pd.option_context('mode.use_inf_as_na', True)
 # print(torch.backends.cudnn.version())  # cuDNN version
 # print(torch.cuda.is_available())  # GPU availability
 # ================ Device options
-device = torch.device("mps")  # Replace 0 with the device number for your other GPU
+device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
 # print("Python version:", sys.version)
@@ -55,12 +55,12 @@ def build_paths(base_dir):
     print("BASE_DIR is ", BASE_DIR)
     paths = {
         "model_save_dir": os.path.join(base_dir, "model_archive"),
-        "data_dir": os.path.join(base_dir, "data", "input", "robustvision"),
+        "data_dir": os.path.join(base_dir, "data", "input", "ROBUSTVISION"),
         "results_dir": os.path.join(base_dir, "results"),
-        "folder_path": os.path.join(base_dir, "results", "Foval", "robustvision", "FeaturesRankings_Creation"),
-        "save_path": os.path.join(base_dir, "results", "Foval", "robustvision", "ACTIF_evaluation_results.txt"),
-        "model_path" : os.path.join(base_dir, "models", "foval", "config", "foval"),
-        "config_path": os.path.join(base_dir, "models", "foval", "config", "foval.json"),
+        "folder_path": os.path.join(base_dir, "results", "Foval", "ROBUSTVISION", "FeaturesRankings_Creation"),
+        "save_path": os.path.join(base_dir, "results", "Foval", "ROBUSTVISION", "ACTIF_evaluation_results.txt"),
+        "model_path" : os.path.join(base_dir, "models", "FOVAL", "config", "FOVAL"),
+        "config_path": os.path.join(base_dir, "models", "FOVAL", "config", "FOVAL.json"),
 
     }
     for path in paths.values():
@@ -201,7 +201,7 @@ if __name__ == '__main__':
 
     # Setup Model
     modelName = "Foval"
-    datasetName = "robustvision"
+    datasetName = "ROBUSTVISION"
     num_repetitions = 25  # Define the number of repetitions for 80/20 splits
 
     dataset = RobustVisionDataset(data_dir=paths["data_dir"], sequence_length=10)

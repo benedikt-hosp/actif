@@ -15,17 +15,18 @@ from captum.attr import IntegratedGradients, FeatureAblation, DeepLift
 from memory_profiler import memory_usage
 import sys
 
-base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if base_path not in sys.path:
-    sys.path.append(base_path)
+# base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# if base_path not in sys.path:
+#     sys.path.append(base_path)
 
 import torch
 from torch.cuda.amp import autocast
 
-from models.foval.foval_preprocessor import input_features
+from models.FOVAL.foval_preprocessor import input_features
 import json
-from models.foval.FOVAL import FOVAL
-device = torch.device("mps")  # Replace 0 with the device number for your other GPU
+from models.FOVAL.FOVAL import FOVAL
+
+device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
 torch.backends.cudnn.enabled = False
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
@@ -61,28 +62,12 @@ class PyTorchModelWrapper_SHAP:
         return aggregated_output.cpu().numpy()
 
 
-class PyTorchModelWrapper_SHAPIQ:
-    def __init__(self, model):
-        self.model = model
-
-    def __call__(self, X):
-        # Convert NumPy array to PyTorch tensor
-        X_tensor = torch.tensor(X, dtype=torch.float32).to(next(self.model.parameters()).device)
-
-        # Forward pass through the model
-        with torch.no_grad():
-            output = self.model(X_tensor)
-
-        # Handle different output shapes
-        if output.dim() == 3:  # If the output has time steps
-            output = output.mean(dim=1)  # Aggregate over time steps
-        return output.cpu().numpy()
 class FeatureRankingsCreator:
-    def __init__(self, modelName, datasetName, dataset):
+    def __init__(self, modelName, datasetName, dataset, trainer, paths):
+        self.modelName = modelName
+        self.paths = paths
         self.device = torch.device("mps")  # Replace 0 with the device number for your other GPU
-        self.baseFolder = None
-        # self.trainer = trainer
-        self.outputFolder = None
+        self.trainer = trainer
         self.currentModel = None
         self.currentModelName = modelName
         self.currentDatasetName = datasetName
@@ -100,10 +85,10 @@ class FeatureRankingsCreator:
         self.memory_data = []
         self.methods = [
             # ABLATION
-            # 'ablation_MEAN',
-            # 'ablation_MEANSTD',
-            # 'ablation_INV',
-            # 'ablation_PEN',
+            'ablation_MEAN',
+            'ablation_MEANSTD',
+            'ablation_INV',
+            'ablation_PEN',
 
             # DeepACTIF Input layer
             'deepactif_input_MEAN',
@@ -117,15 +102,11 @@ class FeatureRankingsCreator:
             'deepactif_lstm_INV',
             'deepactif_lstm_PEN',
 
-
             # DeepACTIF penultimate layer
             'deepactif_penultimate_MEAN',
             'deepactif_penultimate_MEANSTD',
             'deepactif_penultimate_INV',
             'deepactif_penultimate_PEN',
-
-            'deepactif_ng', # New method
-            'autoDeepactif',
 
             # SHUFFLE
             'shuffle_MEAN',
@@ -189,13 +170,12 @@ class FeatureRankingsCreator:
         ]
 
     def load_model(self, modelName):
-        if modelName == "Foval":
-            self.currentModel, self.hyperparameters = self.loadFOVALModel(model_path="../models/foval/config/foval")
+        if modelName == "FOVAL":
+            self.currentModel, self.hyperparameters = self.loadFOVALModel(model_path=self.paths["model_path"])
 
     def setup_directories(self):
-        self.outputFolder = f'results/' + self.currentModelName + '/' + self.currentDatasetName + '/FeaturesRankings_Creation'
-        os.makedirs(self.outputFolder, exist_ok=True)
-        self.baseFolder = os.path.dirname(self.outputFolder)  # This will give the path without
+
+        os.makedirs(self.paths["results_folder_path"], exist_ok=True)
 
     # 2.
     def process_methods(self):
@@ -356,11 +336,7 @@ class FeatureRankingsCreator:
                                                                    actif_variant='INV'),
             'deepactif_penultimate_PEN': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
                                                                    actif_variant='PEN'),
-            'deepactif_ng': lambda: self.compute_deepactif_ng(valid_loader, actif_variant='INV'),
-            'autoDeepactifFull': lambda: self.compute_autodeepactif_full(valid_loader),
-            'bayesDeepactif': lambda: self.compute_bayesACTIF(valid_loader),
-            
-            
+
         }
 
         return method_functions.get(method, None)
@@ -502,7 +478,7 @@ class FeatureRankingsCreator:
         Ablation
     '''
 
-    def ablation(self, valid_loader,actif_variant):
+    def ablation(self, valid_loader, actif_variant):
         """
         Calculate feature attributions for all subjects using LOOCV.
 
@@ -514,62 +490,10 @@ class FeatureRankingsCreator:
         Returns:
             list: Feature attributions for each subject.
         """
-        # results = {}
-
-        # # 1. Get all features
-        # top_features = input_features
-        # feature_count = len(top_features) - 2  # Adjust based on your specific needs
-        # remaining_features = top_features
-        # print(f"START: Evaluating BASELINE Model.")
-
-   
-        # all_attributions = []
-
-        # for subject in self.trainer.dataset.subject_list:
-        #     print(f"Calculating attributions for subject: {subject}")
-
-        #     # Define training and validation splits
-        #     train_subjects = [s for s in self.trainer.dataset.subject_list if s != subject]
-        #     val_subjects = [subject]
-
-        #     # Train the model using the trainer
-        #     self.trainer.run_fold(train_subjects, val_subjects, None)
-
-        #     # Generate predictions for the validation subject
-        #     predictions, _ = self.trainer.predict(val_subjects)
-
-        #     # Calculate feature attributions
-        #     feature_ablation = FeatureAblation(lambda input_batch: self.trainer.model(input_batch))
-        #     aggregated_attributions = []
-
-        #     for input_batch in predictions:
-        #         attributions = feature_ablation.attribute(torch.from_numpy(input_batch).to(self.trainer.device))
-        #         aggregated_attributions.append(attributions.mean(dim=0).cpu().numpy())
-
-        #     # Aggregate and apply ACTIF variant
-        #     aggregated_attributions = np.mean(aggregated_attributions, axis=0)
-        #     if actif_variant == 'MEAN':
-        #         importance = self.calculate_actif_mean(aggregated_attributions)
-        #     elif actif_variant == 'MEANSTD':
-        #         importance = self.calculate_actif_meanstddev(aggregated_attributions)
-        #     elif actif_variant == 'INV':
-        #         importance = self.calculate_actif_inverted_weighted_mean(aggregated_attributions)
-        #     elif actif_variant == 'PEN':
-        #         importance = self.calculate_actif_robust(aggregated_attributions)
-        #     else:
-        #         raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
-
-        #     # Save results for the current subject
-        #     results = [{'feature': feature, 'attribution': importance[i]} for i, feature in enumerate(remaining_features)]
-        #     all_attributions.append({'subject': subject, 'attributions': results})
-
-        # return all_attributions
 
         self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
-        self.currentModel.inverse_transform=True
         self.currentModel.target_scaler = self.currentDataset.target_scaler
-
 
         self.currentModel.eval()  # Put the model into evaluation mode
 
@@ -802,7 +726,7 @@ class FeatureRankingsCreator:
             importance = self.calculate_actif_robust(all_attributions)
         else:
             raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
-        
+
         print(f"Calculated importance shape: {importance.shape}")
 
         # Ensure that the importance variable is a list or array with the same length as the number of features
@@ -813,7 +737,7 @@ class FeatureRankingsCreator:
             raise ValueError(
                 f"ACTIF method returned {importance.shape[0]} importance scores, but {len(self.selected_features)} features are expected."
             )
-        
+
         # Prepare the results with the aggregated importance
         results = [{'feature': self.selected_features[i], 'attribution': importance[i]} for i in
                    range(len(self.selected_features))]
@@ -883,7 +807,6 @@ class FeatureRankingsCreator:
                 importance = self.calculate_actif_robust(aggregated_attributions)
             else:
                 raise ValueError(f"Unknown ACTIF variant: {actif_variant}")
-
 
             # Ensure that the importance variable is a list or array with the same length as the number of features
             if not isinstance(importance, np.ndarray):
@@ -1067,8 +990,6 @@ class FeatureRankingsCreator:
     #     # # Prepare results as a list of dictionaries
     #     # results = [{'feature': cols[i], 'attribution': importance[i]} for i in range(num_features)]
 
-        
-        
     #     # aggregated_importances.extend(subject_importances)
 
     #     # return results
@@ -1159,7 +1080,7 @@ class FeatureRankingsCreator:
     #     results = [{'feature': cols[i], 'attribution': importance[i]} for i in range(len(cols))]
 
     #     return results
-    
+
     def feature_shuffling_importances(self, valid_loader, actif_variant):
         """
         Compute feature importances using feature shuffling and apply ACTIF aggregation.
@@ -1239,7 +1160,6 @@ class FeatureRankingsCreator:
 
         return results
 
-
     '''
        =======================================================================================
        # Utility Functions
@@ -1279,7 +1199,7 @@ class FeatureRankingsCreator:
             print("=======================================================")
 
         df_timing = pd.DataFrame(self.timing_data)
-        file_path = f"{self.outputFolder}/method_execution_times.csv"
+        file_path = f"{self.paths['results_folder_path']}/method_execution_times.csv"
         header = not os.path.exists(file_path)
         df_timing.to_csv(file_path, mode='a', index=False, header=header)
         logging.info(f"Appended average execution times to '{file_path}'")
@@ -1306,7 +1226,7 @@ class FeatureRankingsCreator:
         return sorted_importances
 
     def save_importances_in_file(self, mean_importances_sorted, method):
-        filename = f"{self.outputFolder}/{method}.csv"
+        filename = f"{self.paths['results_folder_path']}/{method}.csv"
         mean_importances_sorted.to_csv(filename, index=False)
         logging.info(f"Saved importances for {method} in {filename}")
 
@@ -1318,23 +1238,26 @@ class FeatureRankingsCreator:
         print(f"START: Evaluating BASELINE Model.")
 
         # Assign the top features to the trainer
-        self.trainer.dataset = self.dataset
-        self.dataset.current_features = remaining_features
-        self.dataset.load_data()
+        self.currentDataset.current_features = remaining_features
+        self.currentDataset.load_data()
+        self.trainer.dataset = self.currentDataset
 
         self.trainer.setup(feature_count=feature_count, feature_names=remaining_features)
 
         # Perform cross-validation and get the performance results for each run
-        full_feature_performance = self.trainer.cross_validate(num_epochs=500, loocv=False, num_repeats=num_repetitions)
+        full_feature_performance = self.trainer.cross_validate(num_epochs=500, loocv=False,
+                                                               num_repeats=len(self.trainer.dataset.subject_list))
 
         results['Baseline'] = full_feature_performance
 
         # Save baseline results
-        print("Baseline saved to ", self.outputFolder)
-        with open(self.outputFolder, "a") as file:
-            file.write(f"Baseline Performance of {self.modelName} on dataset {self.dataset.name}: {full_feature_performance}\n")
+        print("Baseline saved to ", self.paths['evaluation_save_path'])
+        with open(self.paths['evaluation_save_path'], "a") as file:
+            file.write(
+                f"Baseline Performance of {self.modelName} on dataset {self.currentDataset.name}: {full_feature_performance}\n")
 
-        print(f"Baseline Performance of {self.modelName} on dataset {self.dataset.name}: {full_feature_performance}\n")
+        print(
+            f"Baseline Performance of {self.modelName} on dataset {self.currentDataset.name}: {full_feature_performance}\n")
         return full_feature_performance
 
     def loadFOVALModel(self, model_path, featureCount=38):
@@ -1348,70 +1271,3 @@ class FeatureRankingsCreator:
                       dropout_rate=hyperparameters['dropout_rate']).to(device)
 
         return model, hyperparameters
-
-
-
-###############################
-
-
-    import torch.nn.functional as F
-
-    def compute_deepactif_ng(self, valid_loader, actif_variant):
-        # Ensure device selection
-        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-
-        # Initialize model
-        model = FOVAL(input_size=38).to(device)  # Ensure input_size is correctly set
-
-        # Define number of features explicitly
-        num_features = 38  # Replace self.selected_features
-
-        # Run DeepACTIF Analysis on validation dataset
-        analyzer = DeepACTIFAnalyzer(model, features=self.selected_features)
-        feature_importance = analyzer.analyze(valid_loader, device)
-
-        print("Final Feature Importance:", feature_importance)
-        return feature_importance
-    
-
-    def compute_autodeepactif_full(self, valid_loader):
-        # Example Usage:
-        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-
-        # Initialize model
-        model = FOVAL(input_size=38).to(device)
-
-        # Run DeepACTIF Analysis on **each sample**
-        analyzer = AutoDeepACTIF_AnalyzerFull(model, self.selected_features, device, use_gaussian_spread=True)
-        sample_importances = analyzer.analyze(valid_loader)
-
-        # Aggregate & return per sample in SHAP format
-        results = analyzer.aggregate_and_return(sample_importances)
-
-        # Print feature importance **for each sample**
-        for sample_idx, sample_result in enumerate(results):
-            print(f"✅ Feature Importance for Sample {sample_idx}: {sample_result}")
-
-        return results
-    
-
-    
-    def compute_bayesACTIF(self, valid_loader):
-        # Example Usage:
-        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-
-        # Initialize model
-        model = FOVAL(input_size=38).to(device)
-
-        # Run DeepACTIF Analysis on **each sample**
-        analyzer = BayesianFeatureImportance(model, features=self.selected_features)
-        sample_importances = analyzer.analyze(valid_loader)
-
-        # Aggregate & return per sample in SHAP format
-        results = analyzer.aggregate_and_return(sample_importances)
-
-        # Print feature importance **for each sample**
-        for sample_idx, sample_result in enumerate(results):
-            print(f"✅ Feature Importance for Sample {sample_idx}: {sample_result}")
-
-        return results

@@ -11,10 +11,10 @@ from sklearn.preprocessing import (
 import warnings
 
 from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from models.foval.foval_preprocessor import clean_data, detect_and_remove_outliers_in_features_iqr, \
+from models.FOVAL.foval_preprocessor import clean_data, detect_and_remove_outliers_in_features_iqr, \
     remove_outliers_in_labels, binData, createFeatures, global_normalization, subject_wise_normalization, \
     separate_features_and_targets
-from models.foval.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
+from models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
 
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)
@@ -29,11 +29,11 @@ class RobustVisionDataset(AbstractDatasetClass):
         """
         super().__init__(data_dir, sequence_length)
         self.input_data = None
-        self.name = "robustvision"
+        self.name = "ROBUSTVISION"
         self.subject_list = None
         self.sequence_length = 10  # sequence_length
         self.data_dir = data_dir
-        print("Dta dir ", self.data_dir)
+        print("Data dir ", self.data_dir)
         self.best_transformers = None
         self.minDepth = 0.35  # in meter
         self.maxDepth = 3

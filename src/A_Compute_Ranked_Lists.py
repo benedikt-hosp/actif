@@ -1,19 +1,11 @@
-import json
 import os
 import torch
 import pandas as pd
 import numpy as np
-import sys
-
-BASE_DIR = os.path.dirname(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if base_path not in sys.path:
-    sys.path.append(base_path)
 
 from src.training.foval_trainer import FOVALTrainer
 from FeatureRankingsCreator import FeatureRankingsCreator
 import warnings
-from models.foval.FOVAL import FOVAL
 from src.dataset_classes.robustVision_dataset import RobustVisionDataset
 
 # ================ Display options
@@ -21,70 +13,63 @@ warnings.filterwarnings('ignore')
 pd.set_option('display.max_columns', None)
 pd.option_context('mode.use_inf_as_na', True)
 
+# ================ Randomization seed
+np.random.seed(42)
+torch.manual_seed(42)
+
 # ================ Device options
 device = torch.device("mps")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
-model_save_dir = "../models"
+model_save_dir = "models"
 os.makedirs(model_save_dir, exist_ok=True)
-
-np.random.seed(42)
-torch.manual_seed(42)
+BASE_DIR = '../'
+MODEL = "FOVAL"
+DATASET_NAME = "ROBUSTVISION"  # "GIW"  "TUFTS"
 
 
 def build_paths(base_dir):
-    print("BASE_DIR is ", "../")
-    paths = {
-        "model_save_dir": os.path.join(base_dir, "model_archive"),
-        "data_dir": os.path.join(base_dir, "data", "input"),
-        "results_dir": os.path.join(base_dir, "results"),
-        "folder_path": os.path.join(base_dir, "results", "Foval", "robustvision", "FeaturesRankings_Creation"),
-        "save_path": os.path.join(base_dir, "results", "Foval", "robustvision", "ACTIF_evaluation_results.txt"),
-        "model_path": os.path.join(base_dir, "models", "foval", "config", "foval"),
-        "config_path": os.path.join(base_dir, "models", "foval", "config", "foval.json"),
+    print("BASE_DIR is ", base_dir)
+    paths = {"model_save_dir": os.path.join(base_dir, "model_archive"),
+             "results_dir": os.path.join(base_dir, "results"),
+             "data_base": os.path.join(base_dir, "data", "input"),
+             "model_path": os.path.join(base_dir, "models", MODEL, "config", MODEL),
+             "config_path": os.path.join(base_dir, "models", MODEL, "config", DATASET_NAME, ".json")}
 
-    }
+    paths["data_dir"] = os.path.join(paths["data_base"], DATASET_NAME)
+    paths["results_folder_path"] = os.path.join(paths["results_dir"], MODEL, DATASET_NAME, "FeaturesRankings_Creation")
+    paths["evaluation_save_path"] = os.path.join(paths["results_dir"], MODEL, DATASET_NAME, "ACTIF_evaluation_results.txt")
+
     for path in paths.values():
         os.makedirs(os.path.dirname(path), exist_ok=True)
     return paths
 
 
 if __name__ == '__main__':
-    # TODO Suggestions for Improvement:
-    # 	1. Include additional baselines like LIME and LRP to provide a more comprehensive benchmark.
-    # 	2. Expand dataset diversity by including datasets from different sources but for the same task
-    #    	(e.g., another biometric dataset) and exploring domains like finance, speech processing, and industrial monitoring.
-    #       + TUFTS and +GIW
-    # 	3. Test additional architectures to show DeepACTIF’s flexibility beyond LSTMs.
-    #       - TCNs
-    #       - Transformers,
-    # 	4. Provide qualitative explainability comparisons by visualizing feature importance rankings and checking consistency across different methods.
-    # 	5. Analyze robustness to model and data variations, including sensitivity to LSTM size, dataset noise, and sequence length.
-    # 	6. Investigate potential bias in INV by checking whether penalizing high-variability features removes important signals.
-
-    # Auswertung: Für jede Methode mean über alle Datensätze und innerhalb Datensatz vergleichen
-    #   - Memory Consumption
-    #   - Computing Time
-    #   - Performance
+    # Parameterize MODEL and DATASET folders
+    paths = build_paths(BASE_DIR)
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 1. Define Dataset
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    datasetName = "robustvision"
-    num_repetitions = 25  # Define the number of repetitions for 80/20 splits
-    dataset = RobustVisionDataset(data_dir="../data/input/robustvision/", sequence_length=10)
-    dataset.load_data()
+    datasetName = DATASET_NAME
+    if DATASET_NAME == "ROBUSTVISION":
+        num_repetitions = 25  # Define the number of repetitions for 80/20 splits
+        dataset = RobustVisionDataset(data_dir=paths["data_dir"], sequence_length=10)
+        dataset.load_data()
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 2. Define Model
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    modelName = "Foval"
+    if MODEL == "FOVAL":
+        trainer = FOVALTrainer(config_path=paths["config_path"], dataset=dataset, device=device,
+                               save_intermediates_every_epoch=False)
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 3. Create Ranked Lists
     # ACTIF Creation: Calculate feature importance ranking for all methods collect sorted ranking list, memory usage, and computation speed
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    fmv = FeatureRankingsCreator(modelName=modelName, datasetName='robustvision', dataset=dataset)
+    fmv = FeatureRankingsCreator(modelName=MODEL, datasetName=DATASET_NAME, dataset=dataset, trainer=trainer, paths=paths)
     fmv.process_methods()
 
 '''
@@ -173,5 +158,26 @@ LOGs:
     # Datensätze: 3
     # Methode: 10
     # Actif Varianten: 4
-    # Sensitivitätsparameter: bis zu 3 (gesamt 60 parameterisierte Methoden)     
+    # Sensitivitätsparameter: bis zu 3 (gesamt 60 parameterisierte Methoden)
+    
+    
+    # TODO Suggestions for Improvement:
+    # 	1. Include additional baselines like LIME and LRP to provide a more comprehensive benchmark.
+    # 	2. Expand dataset diversity by including datasets from different sources but for the same task
+    #    	(e.g., another biometric dataset)
+    #          + TUFTS
+    #          + GIW
+    #       and exploring domains like finance, speech processing, and industrial monitoring.
+    #           # ?
+    # 	3. Test additional architectures to show DeepACTIF’s flexibility beyond LSTMs.
+    #       - TCNs
+    #       - Transformers,
+    # 	4. Provide qualitative explainability comparisons by visualizing feature importance rankings and checking consistency across different methods.
+    # 	5. Analyze robustness to model and data variations, including sensitivity to LSTM size, dataset noise, and sequence length.
+    # 	6. Investigate potential bias in INV by checking whether penalizing high-variability features removes important signals.
+
+    # Auswertung: Für jede Methode mean über alle Datensätze und innerhalb Datensatz vergleichen
+    #   - Memory Consumption
+    #   - Computing Time
+    #   - Performance     
      '''
