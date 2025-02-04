@@ -84,29 +84,29 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
-            # ABLATION
-            'ablation_MEAN',
-            'ablation_MEANSTD',
-            'ablation_INV',
-            'ablation_PEN',
-
-            # DeepACTIF Input layer
-            'deepactif_input_MEAN',
-            'deepactif_input_MEANSTD',
-            'deepactif_input_INV',
-            'deepactif_input_PEN',
-
-            # DeepACTIF LSTM layer
-            'deepactif_lstm_MEAN',
-            'deepactif_lstm_MEANSTD',
-            'deepactif_lstm_INV',
-            'deepactif_lstm_PEN',
-
-            # DeepACTIF penultimate layer
-            'deepactif_penultimate_MEAN',
-            'deepactif_penultimate_MEANSTD',
-            'deepactif_penultimate_INV',
-            'deepactif_penultimate_PEN',
+            # # ABLATION
+            # 'ablation_MEAN',
+            # 'ablation_MEANSTD',
+            # 'ablation_INV',
+            # 'ablation_PEN',
+            #
+            # # DeepACTIF Input layer
+            # 'deepactif_input_MEAN',
+            # 'deepactif_input_MEANSTD',
+            # 'deepactif_input_INV',
+            # 'deepactif_input_PEN',
+            #
+            # # DeepACTIF LSTM layer
+            # 'deepactif_lstm_MEAN',
+            # 'deepactif_lstm_MEANSTD',
+            # 'deepactif_lstm_INV',
+            # 'deepactif_lstm_PEN',
+            #
+            # # DeepACTIF penultimate layer
+            # 'deepactif_penultimate_MEAN',
+            # 'deepactif_penultimate_MEANSTD',
+            # 'deepactif_penultimate_INV',
+            # 'deepactif_penultimate_PEN',
 
             # SHUFFLE
             'shuffle_MEAN',
@@ -1199,7 +1199,7 @@ class FeatureRankingsCreator:
             print("=======================================================")
 
         df_timing = pd.DataFrame(self.timing_data)
-        file_path = f"{self.paths['results_folder_path']}/method_execution_times.csv"
+        file_path = f"{self.paths['evaluation_metrics_save_path']}/computing_time_and_memory_evaluation_metrics.csv"
         header = not os.path.exists(file_path)
         df_timing.to_csv(file_path, mode='a', index=False, header=header)
         logging.info(f"Appended average execution times to '{file_path}'")
@@ -1251,8 +1251,10 @@ class FeatureRankingsCreator:
         results['Baseline'] = full_feature_performance
 
         # Save baseline results
-        print("Baseline saved to ", self.paths['evaluation_save_path'])
-        with open(self.paths['evaluation_save_path'], "a") as file:
+        performance_evaluation_file = os.path.join(self.paths["evaluation_metrics_save_path"] , "performance_evaluation_metrics.txt")
+
+        print("Baseline saved to ", performance_evaluation_file)
+        with open(performance_evaluation_file, "a") as file:
             file.write(
                 f"Baseline Performance of {self.modelName} on dataset {self.currentDataset.name}: {full_feature_performance}\n")
 

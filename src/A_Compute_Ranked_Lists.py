@@ -34,11 +34,11 @@ def build_paths(base_dir):
              "results_dir": os.path.join(base_dir, "results"),
              "data_base": os.path.join(base_dir, "data", "input"),
              "model_path": os.path.join(base_dir, "models", MODEL, "config", MODEL),
-             "config_path": os.path.join(base_dir, "models", MODEL, "config", DATASET_NAME, ".json")}
+             "config_path": os.path.join(base_dir, "models", MODEL, "config", MODEL)}
 
     paths["data_dir"] = os.path.join(paths["data_base"], DATASET_NAME)
     paths["results_folder_path"] = os.path.join(paths["results_dir"], MODEL, DATASET_NAME, "FeaturesRankings_Creation")
-    paths["evaluation_save_path"] = os.path.join(paths["results_dir"], MODEL, DATASET_NAME, "ACTIF_evaluation_results.txt")
+    paths["evaluation_metrics_save_path"] = os.path.join(paths["results_dir"], MODEL, DATASET_NAME)
 
     for path in paths.values():
         os.makedirs(os.path.dirname(path), exist_ok=True)

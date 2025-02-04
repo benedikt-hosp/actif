@@ -47,7 +47,6 @@ class FOVAL(nn.Module):
         lstm_out_3 = lstm_out_2.permute(0, 2, 1)  # Change back to (batch_size, seq_length, num_features)
 
         # 🔹 Apply Max Pooling Along the Time Dimension
-        # lstm_out_max_timestep = lstm_out_3.max(dim=0)
         lstm_out_max_timestep = self.maxpool(lstm_out_3.permute(0, 2, 1)).squeeze(2)  # (batch, features)
         
         lstm_dropout = self.dropout(lstm_out_max_timestep)

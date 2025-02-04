@@ -69,7 +69,8 @@ class FOVALTrainer:
         self.initialize_model()
 
     def load_model_checkpoint(self, config_path):
-        with open(config_path, 'r') as f:
+        config_file = config_path +".json"
+        with open(config_file, 'r') as f:
             hyper_parameters = json.load(f)
         self.hyperparameters = hyper_parameters
         self.batch_size = hyper_parameters['batch_size']
