@@ -1,6 +1,4 @@
-import gc
 import json
-import os
 
 import numpy as np
 import torch
@@ -16,11 +14,11 @@ torch.backends.cudnn.enabled = True
 
 
 import gc
-from models.FOVAL.FOVAL import FOVAL
-from models.FOVAL.foval_preprocessor import input_features
-from src.dataset_classes.robustVision_dataset import RobustVisionDataset
+from implementation.models.FOVAL.FOVAL import FOVAL
+from implementation.models.FOVAL.foval_preprocessor import input_features
+from implementation.dataset_classes.robustVision_dataset import RobustVisionDataset
 import warnings
-from src.training.foval_trainer import FOVALTrainer
+from implementation.models.FOVAL.foval_trainer import FOVALTrainer
 
 # ================ Display options
 warnings.filterwarnings('ignore')
@@ -44,7 +42,7 @@ elif os.path.exists("/home/ec2-user"):  # AWS EC2-Umgebung
 elif os.path.exists("/kaggle/working"):
     BASE_DIR = "/kaggle/input/ACTIF_Upload"
 else:  # Lokale Umgebung
-    BASE_DIR = "./"
+    BASE_DIR = "/"
 
 np.random.seed(42)
 torch.manual_seed(42)

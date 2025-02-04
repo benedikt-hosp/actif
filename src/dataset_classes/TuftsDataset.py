@@ -12,7 +12,7 @@ from sklearn.preprocessing import (
 )
 import warnings
 
-from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
 from data.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
     detect_and_remove_outliers_in_features_iqr, clean_data, global_normalization, subject_wise_normalization, \
     separate_features_and_targets

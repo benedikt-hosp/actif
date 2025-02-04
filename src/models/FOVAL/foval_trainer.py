@@ -1,7 +1,6 @@
 import json
 import pickle
 import os
-from sklearn.model_selection import train_test_split
 
 # import keyboard
 import torch
@@ -9,10 +8,10 @@ import numpy as np
 from torch import nn
 from sklearn.metrics import r2_score
 from sklearn.model_selection import KFold
-from torch.cuda.amp import autocast, GradScaler
-from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from models.FOVAL.FOVAL import FOVAL
-from models.FOVAL.utilities import create_optimizer
+from torch.cuda.amp import GradScaler
+from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from implementation.models.FOVAL.FOVAL import FOVAL
+from implementation.models.FOVAL.utilities import create_optimizer
 
 torch.backends.cudnn.enabled = False
 device = torch.device("mps")  # Replace 0 with the device number for your other GPU
