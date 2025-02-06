@@ -5,62 +5,46 @@ import torch
 import pandas as pd
 import os
 import sys
-# Basispfad hinzufügen, damit "models" und andere Verzeichnisse gefunden werden
-base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if base_path not in sys.path:
-    sys.path.append(base_path)
 
-torch.backends.cudnn.enabled = True
-
-
-import gc
-from implementation.models.FOVAL.FOVAL import FOVAL
-from implementation.models.FOVAL.foval_preprocessor import input_features
-from implementation.dataset_classes.robustVision_dataset import RobustVisionDataset
+from src.dataset_classes.giw_dataset import GIWDataset
+from src.dataset_classes.TuftsDataset import TuftsDataset
+from src.models.FOVAL.foval_trainer import FOVALTrainer
+from src.models.FOVAL.foval_preprocessor import input_features
 import warnings
-from implementation.models.FOVAL.foval_trainer import FOVALTrainer
+from src.dataset_classes.robustVision_dataset import RobustVisionDataset
 
 # ================ Display options
 warnings.filterwarnings('ignore')
 pd.set_option('display.max_columns', None)
 pd.option_context('mode.use_inf_as_na', True)
-# print(torch.__version__)  # PyTorch version
-# print(torch.version.cuda)  # CUDA version
-# print(torch.backends.cudnn.version())  # cuDNN version
-# print(torch.cuda.is_available())  # GPU availability
+
+# ================ Randomization seed
+np.random.seed(42)
+torch.manual_seed(42)
+
 # ================ Device options
 device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
-# print("Python version:", sys.version)
-
-# Dynamische Basisverzeichnisse
-if "COLAB_GPU" in os.environ:  # Google Colab-Umgebung
-    BASE_DIR = "/content/project/ACTIF_Upload"
-elif os.path.exists("/home/ec2-user"):  # AWS EC2-Umgebung
-    BASE_DIR = "/home/ec2-user/project"
-elif os.path.exists("/kaggle/working"):
-    BASE_DIR = "/kaggle/input/ACTIF_Upload"
-else:  # Lokale Umgebung
-    BASE_DIR = "/"
-
-np.random.seed(42)
-torch.manual_seed(42)
+model_save_dir = "models"
+os.makedirs(model_save_dir, exist_ok=True)
+BASE_DIR = './'
+MODEL = "FOVAL"
+DATASET_NAME = "TUFTS"  # "ROBUSTVISION"  "TUFTS" "GIW"
 
 
 def build_paths(base_dir):
+    print("BASE_DIR is ", base_dir)
+    paths = {"model_save_dir": os.path.join(base_dir, "model_archive"),
+             "results_dir": os.path.join(base_dir, "results"),
+             "data_base": os.path.join(base_dir, "data", "input"),
+             "model_path": os.path.join(base_dir, "models", MODEL, "config", MODEL),
+             "config_path": os.path.join(base_dir, "models", MODEL, "config", MODEL)}
 
-    print("BASE_DIR is ", BASE_DIR)
-    paths = {
-        "model_save_dir": os.path.join(base_dir, "model_archive"),
-        "data_dir": os.path.join(base_dir, "data", "input", "ROBUSTVISION"),
-        "results_dir": os.path.join(base_dir, "results"),
-        "folder_path": os.path.join(base_dir, "results", "Foval", "ROBUSTVISION", "FeaturesRankings_Creation"),
-        "save_path": os.path.join(base_dir, "results", "Foval", "ROBUSTVISION", "ACTIF_evaluation_results.txt"),
-        "model_path" : os.path.join(base_dir, "models", "FOVAL", "config", "FOVAL"),
-        "config_path": os.path.join(base_dir, "models", "FOVAL", "config", "FOVAL.json"),
+    paths["data_dir"] = os.path.join(paths["data_base"], DATASET_NAME)
+    paths["results_folder_path"] = os.path.join(paths["results_dir"], MODEL, DATASET_NAME, "FeaturesRankings_Creation")
+    paths["evaluation_metrics_save_path"] = os.path.join(paths["results_dir"], MODEL, DATASET_NAME)
 
-    }
     for path in paths.values():
         os.makedirs(os.path.dirname(path), exist_ok=True)
     return paths
@@ -79,7 +63,7 @@ def get_top_features(importances, percentage):
 
 
 def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, num_repetitions=2):
-    percentages = [0.1, 0.1]  # 0.1, 0.2, 0.3, 0.4]  # , 0.2, 0.3]
+    percentages = [0.1, 0.2, 0.3, 0.4]  # , 0.2, 0.3]
     results = {}
     list_name = f"{modelName}_{dataset.name}_{methodName}"
     results[list_name] = {}
@@ -97,12 +81,14 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
         # Assign the top features to the trainer
         trainer.dataset = dataset
         dataset.current_features = remaining_features
+        dataset.feature_count = feature_count
         dataset.load_data()
 
-        trainer.setup(feature_count=feature_count, feature_names=remaining_features)
+        print("Remaining features: ", remaining_features)
+        trainer.setup(features=remaining_features)
 
         # Perform cross-validation and get the performance results for each run
-        fold_accuracies = trainer.cross_validate(num_epochs=500, loocv=False, num_repeats=num_repetitions)
+        fold_accuracies = trainer.cross_validate(num_epochs=500)
 
         # Calculate mean and standard deviation
         mean_performance = np.mean(fold_accuracies)
@@ -160,23 +146,6 @@ def test_baseline_model(trainer, modelName, dataset, outputFolder, num_repetitio
     return full_feature_performance
 
 
-def loadFOVALModel(model_path, featureCount=54):
-    jsonFile = model_path + '.json'
-
-    # Print the current working directory
-    current_directory = os.getcwd()
-    print(f"Current working directory: {current_directory}")
-
-    with open(jsonFile, 'r') as f:
-        hyperparameters = json.load(f)
-
-    model = FOVAL(input_size=featureCount, embed_dim=hyperparameters['embed_dim'],
-                  fc1_dim=hyperparameters['fc1_dim'],
-                  dropout_rate=hyperparameters['dropout_rate']).to(device)
-
-    return model, hyperparameters
-
-
 def getFeatureList(path):
     # Read the CSV file using pandas
     data = pd.read_csv(path)
@@ -194,36 +163,53 @@ def getFeatureList(path):
 
 
 if __name__ == '__main__':
-
+    # Parameterize MODEL and DATASET folders
     paths = build_paths(BASE_DIR)
 
-    # Setup Model
-    modelName = "Foval"
-    datasetName = "ROBUSTVISION"
-    num_repetitions = 25  # Define the number of repetitions for 80/20 splits
+    # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
+    # 1. Define Dataset
+    # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
+    datasetName = DATASET_NAME
+    if DATASET_NAME == "ROBUSTVISION":
+        # num_repetitions = 25  # Define the number of repetitions for 80/20 splits
+        dataset = RobustVisionDataset(data_dir=paths["data_dir"])
+        dataset.name = DATASET_NAME
+        dataset.load_data()
+        num_repetitions = len(dataset.subject_list)
+    elif DATASET_NAME == "GIW":
+        dataset = GIWDataset(data_dir=paths["data_dir"], trial_name="T4_tea_making")
+        dataset.name = DATASET_NAME
+        dataset.load_data()
+        num_repetitions = len(dataset.subject_list)
+    elif DATASET_NAME == "TUFTS":
+        dataset = TuftsDataset(data_dir=paths["data_dir"])
+        dataset.name = DATASET_NAME
+        dataset.load_data()
+        num_repetitions = len(dataset.subject_list)
+    else:
+        print("No dataset chosen.")
 
-    dataset = RobustVisionDataset(data_dir=paths["data_dir"], sequence_length=10)
-
-    # Load the model
-    model, hyperparameters = loadFOVALModel(model_path=paths["model_path"])
-
-    # Initialize the trainer
-    trainer = FOVALTrainer(config_path=paths["config_path"], dataset=dataset, device=device,
-                           save_intermediates_every_epoch=False)
+    # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
+    # 2. Define Model
+    # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
+    if MODEL == "FOVAL":
+        trainer = FOVALTrainer(config_path=paths["config_path"], dataset=dataset, device=device,
+                               feature_names=input_features, save_intermediates_every_epoch=False)
+        # trainer.setup()
 
     # 1. Baseline performance evaluation
-    print(f" 1. Testing baseline {modelName} on dataset {datasetName}")
+    print(f" 1. Testing baseline {MODEL} on dataset {datasetName}")
     # baseline_performance = test_baseline_model(trainer, modelName, dataset, paths["save_path"], num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
-    for file_name in reversed(os.listdir(paths["folder_path"])):
+    for file_name in reversed(os.listdir(paths["results_folder_path"])):
         if file_name.endswith(".csv"):
-            file_path = os.path.join(paths["folder_path"], file_name)
+            file_path = os.path.join(paths["results_folder_path"], file_name)
             # print("File path is", file_path)
             method = file_name.replace('.csv', '')  # Extract method name from file
             current_feature_list = getFeatureList(file_path)
-            # print("features are", current_feature_list)
+            print("features are", current_feature_list)
 
             print(f" 2. Evaluating feature list: {method}")
-            test_list(feature_list=current_feature_list, dataset=dataset, modelName=modelName, methodName=method,
-                      trainer=trainer, save_path=paths["save_path"], num_repetitions=num_repetitions)
+            test_list(feature_list=current_feature_list, dataset=dataset, modelName=MODEL, methodName=method,
+                      trainer=trainer, save_path=paths["evaluation_metrics_save_path"], num_repetitions=num_repetitions)

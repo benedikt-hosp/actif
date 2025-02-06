@@ -2,28 +2,33 @@ import json
 import pickle
 import os
 
-# import keyboard
 import torch
 import numpy as np
 from torch import nn
 from sklearn.metrics import r2_score
 from sklearn.model_selection import KFold
-from torch.cuda.amp import GradScaler
-from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from implementation.models.FOVAL.FOVAL import FOVAL
-from implementation.models.FOVAL.utilities import create_optimizer
+import sys
+import os
 
-torch.backends.cudnn.enabled = False
-device = torch.device("mps")  # Replace 0 with the device number for your other GPU
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
 
+from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+
+# from data.AbstractDatasetClass import AbstractDatasetClass
+from src.dataset_classes.robustVision_dataset import RobustVisionDataset
+from src.models.FOVAL.utilities import create_optimizer, analyzeResiduals
+from src.models.FOVAL.foval import Foval
+from torch.cuda.amp import autocast, GradScaler
 
 
 class FOVALTrainer:
-    def __init__(self, config_path, dataset: AbstractDatasetClass, device, save_intermediates_every_epoch):
+    def __init__(self, config_path, dataset: AbstractDatasetClass, device, feature_names,
+                 save_intermediates_every_epoch):
         """
         Initialize the FOVALTrainer with feature count, dataset object, and model save path.
         """
-        self.n_splits = None
+        self.feature_count = None
+        self.features = None
         self.current_fold = None
         self.hidden_layer_size = None
         self.dropout_rate = None
@@ -32,24 +37,37 @@ class FOVALTrainer:
         self.early_stopping_threshold = 1.0
         self.patience_limit = 150  # originally 150
         self.hyperparameters = None
-        self.feature_count = None # as we need to remove target and subject column
-        self.feature_names = None
+        self.feature_count = None  # as we need to remove target and subject column
+        self.feature_names = feature_names
         self.dataset = dataset  # Dataset object from RobustVisionDataset
         self.config_path = config_path
         self.save_path = None
+
         self.train_loader = None
         self.valid_loader = None
         self.test_loader = None
+
         self.fold_results = []
         self.best_metrics = {"smae": float('inf'), "mse": float('inf'), "mae": float('inf')}
+
         self.current_metrics = {}
+
         self.target_scaler = None
         self.model = None
         self.optimizer = None
         self.scheduler = None
-        self.sequence_length = self.dataset.sequence_length
+
+        self.sequence_length = 10  # self.dataset.sequence_length
         self.csv_filename = "training_results.csv"
         self.device = device
+        print(f"Device is: {self.device}")
+
+        if self.dataset.subject_list is not None:
+            self.n_splits = len(self.dataset.subject_list)
+        else:
+            self.n_splits = 5
+
+        print("Number of splits: ", self.n_splits)
 
         self.beta = None
         self.weight_decay = None
@@ -60,16 +78,16 @@ class FOVALTrainer:
         # Flags
         self.save_intermediates_every_epoch = save_intermediates_every_epoch
 
-    def setup(self, feature_count, feature_names):
-        self.n_splits = len(self.dataset.subject_list)
-        self.feature_count = feature_count  # as we need to remove target and subject column
-        self.feature_names = feature_names
-        self.load_model_checkpoint(self.config_path)
+    def setup(self, features=None):
+        if features:
+            self.features = features
+            self.feature_count = len(features)-2
+        self.load_model_checkpoint()
         self.initialize_model()
 
-    def load_model_checkpoint(self, config_path):
-        config_file = config_path +".json"
-        with open(config_file, 'r') as f:
+    def load_model_checkpoint(self):
+        config_path = self.config_path + ".json"
+        with open(config_path, 'r') as f:
             hyper_parameters = json.load(f)
         self.hyperparameters = hyper_parameters
         self.batch_size = hyper_parameters['batch_size']
@@ -83,11 +101,21 @@ class FOVALTrainer:
         print("Hyper parameters: ", hyper_parameters)
 
     def initialize_model(self):
-        self.model = FOVAL(input_size=self.feature_count, embed_dim=self.hyperparameters['embed_dim'],
-                           fc1_dim=self.hyperparameters['fc1_dim'],
-                           dropout_rate=self.hyperparameters['dropout_rate']).to(device)
+        self.model = Foval(device=self.device, feature_count=self.feature_count).to(self.device)
+        self.model.initialize(
+            input_size=self.feature_count,
+            fc1_dim=self.hyperparameters['fc1_dim'],
+            dropout_rate=self.hyperparameters['dropout_rate'],
+            hidden_layer_size=self.hyperparameters['embed_dim']
+        )
 
     def save_activations_and_weights(self, intermediates, filename, file_path):
+        """
+
+        @param intermediates:
+        @param filename:
+        @param file_path:
+        """
         save_path_tensors = os.path.join(file_path, f"{filename}_activations.pt")
         save_path_numpy = os.path.join(file_path, f"{filename}_weights.pkl")
 
@@ -105,92 +133,92 @@ class FOVALTrainer:
         print(f"Tensors saved to {save_path_tensors}")
         print(f"NumPy arrays saved to {save_path_numpy}")
 
-    def cross_validate(self, num_epochs=500, loocv=False, num_repeats=2):
+    def cross_validate_with_specific_datasets(self, num_epochs=10):
+        """
+        Perform cross-validation with predefined training and validation datasets.
+        """
+        train_subjects = self.dataset.train_data['SubjectID'].unique()
+        val_subjects = self.dataset.val_data['SubjectID'].unique()
+
+        fold_accuracies = []
+
+        print("Starting cross-validation with separate datasets.")
+
+        for fold in range(len(val_subjects)):
+            print(f"\n\nStarting Fold {fold + 1}/{len(val_subjects)}")
+
+            train_subject_ids = list(train_subjects)
+            val_subject_id = [val_subjects[fold]]
+
+            self.current_fold = fold + 1
+
+            fold_mae = self.run_fold(train_subject_ids, val_subject_id, None, num_epochs)
+            fold_accuracies.append(fold_mae)
+            print(f"Fold {fold + 1} MAE: {fold_mae}")
+            average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
+            print(f"Average Validation MAE across folds: {average_accuracy}")
+            self.reset_metrics()
+
+        best_fold = min(fold_accuracies)
+        print(f"Best Fold with MAE: {best_fold}")
+        average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
+        print(f"Average Cross-Validation MSE: {average_accuracy}")
+        return average_accuracy
+
+    def cross_validate(self, num_epochs=200):
         """
         Perform cross-validation on the dataset.
         """
+        kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=42)
+        fold_accuracies = []
 
-        if loocv:
+        for fold, (train_idx, val_idx) in enumerate(kf.split(self.dataset.subject_list)):
+            print(f"\n\nStarting Fold {fold + 1}/{self.n_splits}")
 
-            kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=42)
-            fold_accuracies = []
+            # Use indices to select subject IDs and convert them to lists
+            train_subjects = list(self.dataset.subject_list[train_idx])
+            val_subjects = list(self.dataset.subject_list[val_idx])
 
-            for fold, (train_index, val_index) in enumerate(kf.split(self.dataset.subject_list)):
-                print(f"\n\nStarting Fold {fold + 1}/{self.n_splits}")
-                # Initialize a list to store MAE for each fold
-                # fold_accuracies = []
-                # Get training and validation subjects using the indices provided by KFold
-                train_subjects = [self.dataset.subject_list[i] for i in train_index]
-                val_subjects = [self.dataset.subject_list[i] for i in val_index]
+            print("Train Subjects: ", train_subjects)
+            print("Validation Subjects: ", val_subjects)
+            # Set the current fold number
+            self.current_fold = fold + 1
 
-                # Set the current iteration number as fold
-                self.current_fold = fold
-
-                # Perform training and validation for this fold
-                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=False)
-                fold_accuracies.append(fold_mae)
-
-                print(f"Fold {fold} MAE: {fold_mae}")
-                self.reset_metrics()
-
-            # # Calculate overall performance on whole dataset
-            # best_fold = min(fold_accuracies)
-            # print(f"Best Fold with MAE: {best_fold}")
-            # average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-            # print(f"Average Cross-Validation MSE: {average_accuracy}")
-            # return average_accuracy
-        else:
-
-
-            # Set up 5-Fold Cross-Validation
-            kf = KFold(n_splits=num_repeats, shuffle=True, random_state=42)
-            fold_accuracies = []
-
-            # Iterate over each fold
-            print("kf.split input:", self.dataset.subject_list)
-
-            for fold, (train_index, val_index) in enumerate(kf.split(self.dataset.subject_list), 1):
-                print(f"\n\nStarting Fold {fold}/{num_repeats}")
-                # Initialize a list to store MAE for each fold
-                # Get training and validation subjects using the indices provided by KFold
-                train_subjects = [self.dataset.subject_list[i] for i in train_index]
-                val_subjects = [self.dataset.subject_list[i] for i in val_index]
-
-                # Set the current iteration number as fold
-                self.current_fold = fold
-
-                # Perform training and validation for this fold
-                fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs, loocv=False)
-                fold_accuracies.append(fold_mae)
-
-                print(f"Fold {fold} MAE: {fold_mae}")
-                self.reset_metrics()
-
-            # Calculate the average performance over the 5 folds
+            fold_mae = self.run_fold(train_subjects, val_subjects, None, num_epochs)
+            fold_accuracies.append(fold_mae)
+            print(f"Fold {fold + 1} MAE: {fold_mae}")
             average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
-            print(f"Average Validation MAE over 5 folds: {average_accuracy}")
+            print(f"Average Validation MAE across folds: {average_accuracy}")
+            self.reset_metrics()
 
-            return fold_accuracies
+        # Calculate overall performance on whole dataset
+        best_fold = min(fold_accuracies)
+        print(f"Best Fold with MAE: {best_fold}")
+        average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
+        print(f"Average Cross-Validation MSE: {average_accuracy}")
+        return average_accuracy
 
-    def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10, loocv=False):
-        if loocv:
-            # Use individual directories per validation participant only when doing LOOCV
-            if val_index is not None and len(val_index) > 0:
-                validation_participant_name = val_index[0]  # Single participant for LOOCV
-                self.save_path = os.path.join("results", validation_participant_name)
-            else:
-                validation_participant_name = "unknown"
-                self.save_path = os.path.join("results", "unknown")
+    def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10):
+        # Ensure that val_index is not None and has elements
+        if val_index is not None and len(val_index) > 0:
+            validation_participant_name = val_index[0]
+            training_participant_name = train_index
+
+            print("Training Participants Names: ", training_participant_name)
+            print("Validation Participant Name: ", validation_participant_name, "\n")
+
         else:
-            # Use a shared save path for standard cross-validation
-            self.save_path = os.path.join("results", "current_run")
+            validation_participant_name = "unknown"
 
-        # Ensure the directory exists
-        os.makedirs(self.save_path, exist_ok=True)
+        # Set the save path using the validation participant's name
+        self.save_path = os.path.join("results", validation_participant_name)
+        os.makedirs(self.save_path, exist_ok=True)  # Create the directory if it doesn't exist
 
+        print(
+            f"Train index: {train_index} and val index {validation_participant_name}, and test index {test_index}, and batch size {self.batch_size}")
         # Prepare data loaders
-        self.train_loader, self.valid_loader, self.test_loader, input_size = self.dataset.get_data_loader(
-            train_index, val_index, test_index, self.batch_size)
+        self.train_loader, self.valid_loader, input_size = self.dataset.get_data_loader(
+            train_index, validation_participant_name)
 
         self.target_scaler = self.dataset.target_scaler
         self.optimizer, self.scheduler = create_optimizer(
@@ -198,14 +226,15 @@ class FOVALTrainer:
             weight_decay=self.weight_decay)
 
         with torch.profiler.profile(
-            schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
-            on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
-            record_shapes=True,
-            profile_memory=True,
-            with_stack=True
+                schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
+                on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
+                record_shapes=True,
+                profile_memory=True,
+                with_stack=True
         ) as profiler:
             for epoch in range(num_epochs):
                 self.train_epoch(epoch)
+
                 if self.valid_loader:
                     is_last_epoch = (epoch == num_epochs - 1)
                     self.validate_epoch(epoch, is_last_epoch=is_last_epoch)
@@ -217,12 +246,16 @@ class FOVALTrainer:
             profiler.step()  # Step profiler at the end of each epoch
 
         # Save model state dictionary after training
-        # SPEED UP: COMMENT
-        # self.save_model_state(epoch)
-        print("Training finished in epoch ", epoch)
-        torch.cuda.empty_cache()
+        self.save_model_state(epoch)
+        # print validation SMAE and MAE averages of epoch
+        # average_fold_val_smae = np.mean([f['best_val_smae'] for f in fold_performance])
+        # print(f"Average Validation SMAE across folds: {average_fold_val_smae}")
+        #
+        # average_fold_val_mae = np.mean([f['best_val_mae'] for f in fold_performance])
+        # print(f"Average Validation MAE across folds: {average_fold_val_mae}\n")
+
         return self.best_metrics["mae"]
-    
+
     def train_epoch(self, epoch):
         """
         Train the model for one epoch.
@@ -237,14 +270,12 @@ class FOVALTrainer:
         total_samples = 0.0
         total_mae, total_mse, total_smae = 0, 0, 0
 
-        scaler = torch.cuda.amp.GradScaler()
         for X_batch, y_batch in self.train_loader:
-
+            X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
+            self.optimizer.zero_grad()
 
             # Example forward pass with mixed precision
-            with torch.cuda.amp.autocast():
-                X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
-                self.optimizer.zero_grad()
+            with autocast():
                 y_pred, _ = self.model(X_batch, return_intermediates=True)
                 smae_loss = smae_loss_fn(y_pred, y_batch)
             # Scaled backward pass
@@ -252,12 +283,12 @@ class FOVALTrainer:
             scaler.step(self.optimizer)
             scaler.update()
 
+            # smae_loss.backward()
+            # self.optimizer.step()
 
             # Inverse transform for metric calculation (post-backpropagation)
             y_pred_inv = self.inverse_transform_target(y_pred)
             y_batch_inv = self.inverse_transform_target(y_batch)
-            y_pred_inv = y_pred
-            y_batch_inv = y_batch
 
             # Accumulate metrics on the original scale
             total_mae += mae_loss_fn(y_pred_inv, y_batch_inv).item() * y_batch.size(0)
@@ -281,6 +312,8 @@ class FOVALTrainer:
 
         with torch.no_grad():
             for X_batch, y_batch in self.valid_loader:
+                # if keyboard.is_pressed('q'):
+                #    break
                 X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
                 y_pred, intermediates = self.model(X_batch, return_intermediates=True)
 
@@ -302,18 +335,19 @@ class FOVALTrainer:
         self.current_metrics["val_r2"] = r2_score(np.concatenate(all_true_values), np.concatenate(all_predictions))
 
         # Save activations and weights based on the condition
-        # SPEED UP TRAINING: COMMENT
-        # if self.save_intermediates_every_epoch or is_last_epoch:
-        #     self.save_activations_and_weights(intermediates, "intermediates", self.save_path)
+        if self.save_intermediates_every_epoch or is_last_epoch:
+            self.save_activations_and_weights(intermediates, "intermediates", self.save_path)
 
     def inverse_transform_target(self, y_transformed):
         """
         Apply inverse transformation to the target variable.
         """
-        # if y_transformed.is_cuda:
-        y_transformed = y_transformed.cpu()
+        if y_transformed.is_cuda:
+            y_transformed = y_transformed.cpu()
 
-        y_transformed_np = y_transformed.detach().numpy().reshape(-1, 1)
+        # y_transformed_np = y_transformed.detach().numpy().reshape(-1, 1)
+        y_transformed_np = y_transformed.detach().cpu().numpy().reshape(-1, 1)
+
         if self.dataset.target_scaler:
             y_inverse_transformed = self.dataset.target_scaler.inverse_transform(y_transformed_np).flatten()
             return torch.from_numpy(y_inverse_transformed).to(self.device)
@@ -334,6 +368,7 @@ class FOVALTrainer:
             self.patience_counter = 0
         else:
             self.patience_counter += 1
+            print(f"Current Epoch: {epoch}")
 
         # Early stopping logic
         if self.current_metrics[
@@ -373,7 +408,7 @@ class FOVALTrainer:
 
         return isBreakLoop, self.patience_counter
 
-    def analyzeResiduals(self, predictions, actual_values):
+    def analyzeResiduals(predictions, actual_values):
         # Calculate absolute errors
         absolute_errors = np.abs(predictions - actual_values)
 

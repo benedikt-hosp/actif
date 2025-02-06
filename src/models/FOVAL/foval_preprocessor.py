@@ -9,7 +9,7 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.utils import resample
 from joblib import Parallel, delayed, Memory
 
-# original 38
+# original
 input_features = [
     'SubjectID',
     'Gt_Depth',
@@ -20,10 +20,10 @@ input_features = [
     'World_Gaze_Direction_L_X',
     'World_Gaze_Direction_L_Y',
     'World_Gaze_Direction_L_Z',
-    'World_Gaze_Origin_R_X',
-    'World_Gaze_Origin_R_Z',
-    'World_Gaze_Origin_L_X',
-    'World_Gaze_Origin_L_Z',
+    # 'World_Gaze_Origin_R_X',
+    # 'World_Gaze_Origin_R_Z',
+    # 'World_Gaze_Origin_L_X',
+    # 'World_Gaze_Origin_L_Z',
     # basic computations
     'Vergence_Angle',
     'Normalized_Vergence_Angle',
@@ -56,37 +56,10 @@ input_features = [
     'Acceleration_Gaze_Direction_R_X',
     'Angular_Difference_X',
 ]
-# input_features = [
-#     'World_Gaze_Direction_L_X', 'World_Gaze_Direction_L_Y',
-#     'World_Gaze_Direction_L_Z', 'World_Gaze_Direction_R_X',
-#     'World_Gaze_Direction_R_Y', 'World_Gaze_Direction_R_Z',
-#     'World_Gaze_Origin_R_X', 'World_Gaze_Origin_R_Z',
-#     'World_Gaze_Origin_L_X', 'World_Gaze_Origin_L_Z',
-#     'Vergence_Angle', 'Vergence_Depth', 'Normalized_Depth',
-#     'Directional_Magnitude_R', 'Directional_Magnitude_L', 'Cosine_Angles',
-#     'Gaze_Point_Distance', 'Normalized_Vergence_Angle', 'Delta_Gaze_X',
-#     'Delta_Gaze_Y', 'Delta_Gaze_Z', 'Rolling_Mean_Normalized_Depth',
-#     'Gaze_Vector_Angle', 'Gaze_Point_Depth_Difference',
-#     'Relative_Change_Vergence_Angle', 'Ratio_Directional_Magnitude',
-#     'Ratio_Delta_Gaze_XY', 'Ratio_World_Gaze_Direction_X',
-#     'Ratio_World_Gaze_Direction_Y', 'Ratio_World_Gaze_Direction_Z',
-#     'Velocity_Gaze_Direction_R_X', 'Acceleration_Gaze_Direction_R_X',
-#     'Velocity_Gaze_Direction_R_Y', 'Acceleration_Gaze_Direction_R_Y',
-#     'Velocity_Gaze_Direction_R_Z', 'Acceleration_Gaze_Direction_R_Z',
-#     'Velocity_Gaze_Direction_L_X', 'Acceleration_Gaze_Direction_L_X',
-#     'Velocity_Gaze_Direction_L_Y', 'Acceleration_Gaze_Direction_L_Y',
-#     'Velocity_Gaze_Direction_L_Z', 'Acceleration_Gaze_Direction_L_Z',
-#     'Angular_Difference_Gaze_Directions',
-#     'Interaction_Normalized_Depth_Vergence_Angle', 'Lag_1_Normalized_Depth',
-#     'Diff_Normalized_Depth', 'Directional_Magnitude_Ratio',
-#     'Gaze_Direction_X_Ratio', 'Gaze_Direction_Y_Ratio',
-#     'Gaze_Direction_Z_Ratio', 'Angular_Difference_X',
-#     'Depth_Angle_Interaction', 'Gaze_Point_Euclidean_Distance',
-#     'Gaze_Direction_Angle']
 
 minDepth = 0.35
 maxDepth = 3
-# memory = Memory("cache_dir", verbose=0)
+memory = Memory("cache_dir", verbose=0)
 
 
 def detect_and_remove_outliers_in_features_iqr(df):
@@ -224,55 +197,21 @@ def split_data_by_subjects(scaled_data, train_size=0.9):
     return train_data, validation_data
 
 
-# def getIPD(row):
-#     # Ensure all components (X, Y, Z) for both right and left gaze origins are present
-#     if 'World_Gaze_Origin_R_X' in row and 'World_Gaze_Origin_R_Y' in row and 'World_Gaze_Origin_R_Z' in row:
-#         posR = [row['World_Gaze_Origin_R_X'], row['World_Gaze_Origin_R_Y'], row['World_Gaze_Origin_R_Z']]
-#     else:
-#         print("Warning: Missing right eye origin data.")
-#         return np.nan
-#
-#     if 'World_Gaze_Origin_L_X' in row and 'World_Gaze_Origin_L_Y' in row and 'World_Gaze_Origin_L_Z' in row:
-#         posL = [row['World_Gaze_Origin_L_X'], row['World_Gaze_Origin_L_Y'], row['World_Gaze_Origin_L_Z']]
-#     else:
-#         print("Warning: Missing left eye origin data.")
-#         return np.nan
-#
-#     # Check if the positions are exactly the same (which shouldn't happen)
-#     if posR == posL:
-#         print("Warning: Left and right eye positions are identical.")
-#         return 0.0
-#
-#     # Calculate the Euclidean distance between the two eye origins (IPD)
-#     deltaX = posR[0] - posL[0]
-#     deltaY = posR[1] - posL[1]
-#     deltaZ = posR[2] - posL[2]
-#
-#     ipd = math.sqrt(deltaX ** 2 + deltaY ** 2 + deltaZ ** 2)
-#
-#     # Print the calculated IPD for debugging
-#     # print("IPD ", ipd)
-#
-#     return ipd
-
-
 def getIPD(row):
     # Ensure all components (X, Y, Z) for both right and left gaze origins are present
-    # if 'World_Gaze_Origin_R_X' in row and 'World_Gaze_Origin_R_Y' in row and 'World_Gaze_Origin_R_Z' in row:
-    posR = [row['World_Gaze_Origin_R_X'], 0.0, row['World_Gaze_Origin_R_Z']]
-    # else:
-    #     print("Warning: Missing right eye origin data.")
-    #     return np.nan
-    #
-    # if 'World_Gaze_Origin_L_X' in row and 'World_Gaze_Origin_L_Y' in row and 'World_Gaze_Origin_L_Z' in row:
-    posL = [row['World_Gaze_Origin_L_X'], 0.0, row['World_Gaze_Origin_L_Z']]
-    # else:
-    #     print("Warning: Missing left eye origin data.")
-    #     return np.nan
+    if 'World_Gaze_Origin_R_Y' not in row:
+        posR = [row['World_Gaze_Origin_R_X'], 0.0, row['World_Gaze_Origin_R_Z']]
+    else:
+        posR = [row['World_Gaze_Origin_R_X'], row['World_Gaze_Origin_R_Y'], row['World_Gaze_Origin_R_Z']]
+
+    if 'World_Gaze_Origin_L_Y' not in row:
+        posL = [row['World_Gaze_Origin_L_X'], 0.0, row['World_Gaze_Origin_L_Z']]
+    else:
+        posL = [row['World_Gaze_Origin_L_X'], row['World_Gaze_Origin_L_Y'], row['World_Gaze_Origin_L_Z']]
 
     # Check if the positions are exactly the same (which shouldn't happen)
     if posR == posL:
-        print("Warning: Left and right eye positions are identical.")
+        # print("Warning: Left and right eye positions are identical.")
         return 0.0
 
     # Calculate the Euclidean distance between the two eye origins (IPD)
@@ -281,9 +220,6 @@ def getIPD(row):
     deltaZ = posR[2] - posL[2]
 
     ipd = math.sqrt(deltaX ** 2 + deltaY ** 2 + deltaZ ** 2)
-
-    # Print the calculated IPD for debugging
-    # print("IPD ", ipd)
 
     return ipd
 
@@ -485,13 +421,29 @@ def normalize_subject_data(subject_data, scaler):
     return subject_data_normalized
 
 
-def createFeatures(data_in, currentFeatures, isGIW=False):
-    if isGIW:
-        # # Calculate IPD based on ground truth focused depth
-        # data_in['Calculated_IPD'] = data_in.apply(calculate_ipd, axis=1)
-        # # Assuming you have calculated the IPD already and stored it
-        # calculated_ipd = data_in['Calculated_IPD'].mean()  # Use the mean IPD for all other rows
+#
+# def subjective_normalization(train_data, validation_data):
+#     # Apply global normalization first
+#     train_data = global_normalization(train_data)
+#     validation_data = global_normalization(validation_data)
+#
+#     # Then proceed with the existing subject-wise normalization
+#     unique_train_subjects = train_data['SubjectID'].unique()
+#     unique_validation_subjects = validation_data['SubjectID'].unique()
+#
+#     # Choose your scaler for subject-wise normalization
+#     subject_scaler = RobustScaler()
+#
+#     # Apply subject-wise normalization
+#     training_set_normalized = subject_wise_normalization(train_data, unique_train_subjects, subject_scaler)
+#     validation_set_normalized = subject_wise_normalization(validation_data, unique_validation_subjects,
+#                                                            subject_scaler)
+#
+#     return training_set_normalized, validation_set_normalized
+#
 
+def createFeatures(data_in, isGIW=False):
+    if isGIW:
         # Calculate vergence depth for rows where depth is unknown
         data_in['Vergence_Angle'], data_in['Vergence_Depth'] = zip(
             *data_in.apply(lambda row: getEyeVergenceAngle_GIW(row, row['IPD']), axis=1))
@@ -644,16 +596,22 @@ def createFeatures(data_in, currentFeatures, isGIW=False):
     data_in = data_in.replace([np.inf, -np.inf], np.nan)
     data_in = data_in.dropna()
     # Define excluded features
-    excluded_features = ['World_Gaze_Origin_R_X', 'World_Gaze_Origin_R_Z', 'World_Gaze_Origin_L_X',
-                         'World_Gaze_Origin_L_Z']
+    # Columns to remove
+    # excluded_features = [
+    #     'World_Gaze_Origin_R_X', 'World_Gaze_Origin_R_Y', 'World_Gaze_Origin_R_Z',
+    #     'World_Gaze_Origin_L_X', 'World_Gaze_Origin_L_Y', 'World_Gaze_Origin_L_Z',
+    #     'IPD'
+    # ]
+    # data_in = data_in.drop(columns=[col for col in excluded_features if col in data_in.columns], errors='ignore')
 
-    if currentFeatures:
-        data_in = data_in[currentFeatures]
-    else:
-        data_in = data_in[input_features]
-
+    data_in = data_in[input_features]
     # print("Preprocessor: Size of created features: ", data_in.shape)
     # print("Preprocessor: Features ", data_in.columns)
+    # Handle NaN and Inf values
+    # numerical_columns = data_in.select_dtypes(include=[np.number])
+    # data_in[numerical_columns.columns] = numerical_columns.fillna(0)
+    # data_in[numerical_columns.columns] = numerical_columns.replace([np.inf, -np.inf], 0)
+
 
     return data_in
 
@@ -810,10 +768,10 @@ def createFeatures_new(data_in):
                          'World_Gaze_Origin_L_Z']
 
     # Remove excluded features
-    # data_in = data_in.drop(columns=excluded_features)
+    data_in = data_in.drop(columns=excluded_features)
 
-    # data_in = data_in[input_features]
-    print("Preprocessor: Size of created features: ", data_in.shape)
+    data_in = data_in[input_features]
+    # print("Preprocessor: Size of created features: ", data_in.shape)
     # print("Preprocessor: Features ", data_in.columns)
 
     return data_in

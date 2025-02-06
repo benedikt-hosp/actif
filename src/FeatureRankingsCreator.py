@@ -8,30 +8,24 @@ import shap
 from tqdm import tqdm
 from captum.attr import IntegratedGradients, FeatureAblation, DeepLift
 from memory_profiler import memory_usage
-
-# base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-# if base_path not in sys.path:
-#     sys.path.append(base_path)
-
 import torch
 from torch.cuda.amp import autocast
-
-from implementation.models.FOVAL.foval_preprocessor import input_features
+from src.models.FOVAL.foval_preprocessor import input_features
 import json
-from implementation.models.FOVAL.FOVAL import FOVAL
+from src.models.FOVAL.foval import Foval
 
-device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
 torch.backends.cudnn.enabled = False
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
 
 class PyTorchModelWrapper_SHAP:
-    def __init__(self, model):
+    def __init__(self, model, device):
         self.model = model
+        self.device = device
 
     def __call__(self, x):
         # Convert NumPy array to PyTorch tensor
-        x_tensor = torch.tensor(x, dtype=torch.float32).to(device)
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(self.device)
 
         # # Check if the input is 2D or 3D
         # if x_tensor.dim() == 2:
@@ -57,12 +51,12 @@ class PyTorchModelWrapper_SHAP:
 
 
 class FeatureRankingsCreator:
-    def __init__(self, modelName, datasetName, dataset, trainer, paths):
+    def __init__(self, modelName, datasetName, dataset, trainer, paths, device):
         self.modelName = modelName
         self.paths = paths
-        self.device = torch.device("mps")  # Replace 0 with the device number for your other GPU
+        self.device = device
         self.trainer = trainer
-        self.currentModel = None
+        self.currentModel = self.trainer.model
         self.currentModelName = modelName
         self.currentDatasetName = datasetName
         self.methods = None
@@ -78,29 +72,29 @@ class FeatureRankingsCreator:
         self.timing_data = []
         self.memory_data = []
         self.methods = [
-            # # ABLATION
-            # 'ablation_MEAN',
-            # 'ablation_MEANSTD',
-            # 'ablation_INV',
-            # 'ablation_PEN',
-            #
-            # # DeepACTIF Input layer
-            # 'deepactif_input_MEAN',
-            # 'deepactif_input_MEANSTD',
-            # 'deepactif_input_INV',
-            # 'deepactif_input_PEN',
-            #
-            # # DeepACTIF LSTM layer
-            # 'deepactif_lstm_MEAN',
-            # 'deepactif_lstm_MEANSTD',
-            # 'deepactif_lstm_INV',
-            # 'deepactif_lstm_PEN',
-            #
-            # # DeepACTIF penultimate layer
-            # 'deepactif_penultimate_MEAN',
-            # 'deepactif_penultimate_MEANSTD',
-            # 'deepactif_penultimate_INV',
-            # 'deepactif_penultimate_PEN',
+            # ABLATION
+            'ablation_MEAN',
+            'ablation_MEANSTD',
+            'ablation_INV',
+            'ablation_PEN',
+
+            # DeepACTIF Input layer
+            'deepactif_input_MEAN',
+            'deepactif_input_MEANSTD',
+            'deepactif_input_INV',
+            'deepactif_input_PEN',
+
+            # DeepACTIF LSTM layer
+            'deepactif_lstm_MEAN',
+            'deepactif_lstm_MEANSTD',
+            'deepactif_lstm_INV',
+            'deepactif_lstm_PEN',
+
+            # DeepACTIF penultimate layer
+            'deepactif_penultimate_MEAN',
+            'deepactif_penultimate_MEANSTD',
+            'deepactif_penultimate_INV',
+            'deepactif_penultimate_PEN',
 
             # SHUFFLE
             'shuffle_MEAN',
@@ -127,7 +121,7 @@ class FeatureRankingsCreator:
             'deeplift_mean_PEN',
 
             # IG Zero Baseline
-            'intGrad_zero_MEAN',
+            'intGrad_zero_MEAN',        # no memory
             'intGrad_zero_MEANSTD',
             'intGrad_zero_INV',
             'intGrad_zero_PEN',
@@ -163,22 +157,15 @@ class FeatureRankingsCreator:
             'shap_prec_PEN',
         ]
 
-    def load_model(self, modelName):
-        if modelName == "FOVAL":
-            self.currentModel, self.hyperparameters = self.loadFOVALModel(model_path=self.paths["model_path"])
-
     def setup_directories(self):
-
         os.makedirs(self.paths["results_folder_path"], exist_ok=True)
 
-    # 2.
     def process_methods(self):
         for method in self.methods:
             print(f"Evaluating method: {method}")
             aggregated_importances = self.calculate_ranked_list_by_method(method=method)
             self.sort_importances_based_on_attribution(aggregated_importances, method=method)
 
-    # 3.
     def calculate_ranked_list_by_method(self, method='captum_intGrad'):
         aggregated_importances = []
         all_execution_times = []
@@ -200,7 +187,7 @@ class FeatureRankingsCreator:
 
         self.save_timing_data(method, all_execution_times, all_memory_usages)
         df_importances = pd.DataFrame(aggregated_importances)
-        self.feature_importance_results[method] = df_importances  # Store the results
+        self.feature_importance_results[method] = df_importances
         return df_importances
 
     def getDataLoaders(self, test_subject):
@@ -211,7 +198,7 @@ class FeatureRankingsCreator:
         logging.info(f"Validation subject(s): {validation_subjects}")
         logging.info(f"Training subjects: {remaining_subjects}")
 
-        train_loader, valid_loader, test_loader, input_size = self.currentDataset.get_data_loader(
+        train_loader, valid_loader, input_size = self.currentDataset.get_data_loader(
             remaining_subjects.tolist(), validation_subjects, None, batch_size=batch_size)
 
         return train_loader, valid_loader, input_size
@@ -249,8 +236,7 @@ class FeatureRankingsCreator:
             'intGrad_mean_INV': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='INV'),
             'intGrad_mean_PEN': lambda: self.compute_intgrad(valid_loader, baseline='MEAN', actif_variant='PEN'),
 
-            # SHAP Values Methods (v1, v2, v3)
-            # print("Running Memory-Efficient SHAP...")
+            # SHAP Values Methods (Running Memory-Efficient)
             'shap_mem_MEAN': lambda: self.compute_shap(valid_loader, background_size=10, nsamples=50,
                                                        explainer_type='gradient', actif_variant='MEAN'),
             'shap_mem_MEANSTD': lambda: self.compute_shap(valid_loader, background_size=10, nsamples=50,
@@ -260,7 +246,7 @@ class FeatureRankingsCreator:
             'shap_mem_PEN': lambda: self.compute_shap(valid_loader, background_size=10, nsamples=50,
                                                       explainer_type='gradient', actif_variant='PEN'),
 
-            # print("Running Time-Efficient SHAP...")
+            # SHAP Values Methods (Running Time-Efficient SHAP)
             'shap_time_MEAN': lambda: self.compute_shap(valid_loader, background_size=5, nsamples=20,
                                                         explainer_type='gradient', actif_variant='MEAN'),
             'shap_time_MEANSTD': lambda: self.compute_shap(valid_loader, background_size=5, nsamples=20,
@@ -270,7 +256,7 @@ class FeatureRankingsCreator:
             'shap_time_PEN': lambda: self.compute_shap(valid_loader, background_size=5, nsamples=20,
                                                        explainer_type='gradient', actif_variant='PEN'),
 
-            # print("Running High-Precision SHAP...")
+            # SHAP Values Methods (Running High-Precision SHAP)
             'shap_prec_MEAN': lambda: self.compute_shap(valid_loader, background_size=50, nsamples=1000,
                                                         explainer_type='deep', actif_variant='MEAN'),
             'shap_prec_MEANSTD': lambda: self.compute_shap(valid_loader, background_size=50, nsamples=1000,
@@ -308,27 +294,27 @@ class FeatureRankingsCreator:
             'deeplift_mean_PEN': lambda: self.compute_deeplift(valid_loader, baseline_type='MEAN',
                                                                actif_variant='PEN'),
 
-            # NISP Methods (v1, v2, v3)
-            'deepactif_input_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='input',
+            # DeepACTIF V1: Methods (v1, v2, v3)
+            'deepactif_input_MEAN': lambda: self.compute_deepactif(valid_loader, hook_location='input',
                                                               actif_variant='MEAN'),
-            'deepactif_input_MEANSTD': lambda: self.compute_nisp(valid_loader, hook_location='input',
+            'deepactif_input_MEANSTD': lambda: self.compute_deepactif(valid_loader, hook_location='input',
                                                                  actif_variant='MEANSTD'),
-            'deepactif_input_INV': lambda: self.compute_nisp(valid_loader, hook_location='input', actif_variant='INV'),
-            'deepactif_input_PEN': lambda: self.compute_nisp(valid_loader, hook_location='input', actif_variant='PEN'),
+            'deepactif_input_INV': lambda: self.compute_deepactif(valid_loader, hook_location='input', actif_variant='INV'),
+            'deepactif_input_PEN': lambda: self.compute_deepactif(valid_loader, hook_location='input', actif_variant='PEN'),
 
-            'deepactif_lstm_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='MEAN'),
-            'deepactif_lstm_MEANSTD': lambda: self.compute_nisp(valid_loader, hook_location='lstm',
+            'deepactif_lstm_MEAN': lambda: self.compute_deepactif(valid_loader, hook_location='lstm', actif_variant='MEAN'),
+            'deepactif_lstm_MEANSTD': lambda: self.compute_deepactif(valid_loader, hook_location='lstm',
                                                                 actif_variant='MEANSTD'),
-            'deepactif_lstm_INV': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='INV'),
-            'deepactif_lstm_PEN': lambda: self.compute_nisp(valid_loader, hook_location='lstm', actif_variant='PEN'),
+            'deepactif_lstm_INV': lambda: self.compute_deepactif(valid_loader, hook_location='lstm', actif_variant='INV'),
+            'deepactif_lstm_PEN': lambda: self.compute_deepactif(valid_loader, hook_location='lstm', actif_variant='PEN'),
 
-            'deepactif_penultimate_MEAN': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+            'deepactif_penultimate_MEAN': lambda: self.compute_deepactif(valid_loader, hook_location='penultimate',
                                                                     actif_variant='MEAN'),
-            'deepactif_penultimate_MEANSTD': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+            'deepactif_penultimate_MEANSTD': lambda: self.compute_deepactif(valid_loader, hook_location='penultimate',
                                                                        actif_variant='MEANSTD'),
-            'deepactif_penultimate_INV': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+            'deepactif_penultimate_INV': lambda: self.compute_deepactif(valid_loader, hook_location='penultimate',
                                                                    actif_variant='INV'),
-            'deepactif_penultimate_PEN': lambda: self.compute_nisp(valid_loader, hook_location='penultimate',
+            'deepactif_penultimate_PEN': lambda: self.compute_deepactif(valid_loader, hook_location='penultimate',
                                                                    actif_variant='PEN'),
 
         }
@@ -351,7 +337,7 @@ class FeatureRankingsCreator:
             # Loop through the validation loader batch by batch
             for batch in valid_loader:
                 inputs, _ = batch  # Assuming batch returns (inputs, labels)
-                inputs = inputs.to(device)  # Move inputs to the appropriate device
+                inputs = inputs.to(self.device)  # Move inputs to the appropriate device
 
                 # Convert inputs to numpy if needed, and compute mean activations over time
                 inputs_np = inputs.cpu().numpy()  # Convert inputs to numpy array
@@ -485,14 +471,14 @@ class FeatureRankingsCreator:
             list: Feature attributions for each subject.
         """
 
-        self.load_model(self.currentModelName)
+        # self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
         self.currentModel.target_scaler = self.currentDataset.target_scaler
 
         self.currentModel.eval()  # Put the model into evaluation mode
 
         total_samples = len(valid_loader.dataset)  # Total number of samples
-        aggregated_attributions = torch.zeros(total_samples, len(self.selected_features), device=device)
+        aggregated_attributions = torch.zeros(total_samples, len(self.selected_features), device=self.device)
 
         start_idx = 0  # To keep track of where to insert the current batch's results
 
@@ -500,7 +486,7 @@ class FeatureRankingsCreator:
         feature_ablation = FeatureAblation(lambda input_batch: self.model_wrapper(self.currentModel, input_batch))
 
         for input_batch, _ in valid_loader:
-            input_batch = input_batch.to(device)
+            input_batch = input_batch.to(self.device)
             batch_size = input_batch.size(0)
 
             # Compute feature attributions for the current batch
@@ -558,13 +544,13 @@ class FeatureRankingsCreator:
         # List to accumulate attributions
         all_attributions = []
         total_instances = 0
-        self.load_model(self.currentModelName)
+        # self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
 
         self.currentModel.eval()  # Put the model into evaluation mode
 
         for inputs, _ in valid_loader:
-            inputs = inputs.to(device)
+            inputs = inputs.to(self.device)
 
             # Define the baseline based on the selected baseline_type
             if baseline_type == 'ZEROES':
@@ -630,18 +616,18 @@ class FeatureRankingsCreator:
             return results
 
     '''
-        NISP
+        deepactif
     '''
 
-    def compute_nisp(self, valid_loader, hook_location, actif_variant):
+    def compute_deepactif(self, valid_loader, hook_location, actif_variant):
         """
-            NISP calculation with different layer hooks based on version.
+            deepactif calculation with different layer hooks based on version.
             Args:
                 hook_location: Where to hook into the model ('before_lstm', 'after_lstm', 'before_output').
         """
         activations = []
         all_attributions = []
-        self.load_model(self.currentModelName)
+        # self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
 
         # Register hooks at different stages based on the version
@@ -676,7 +662,7 @@ class FeatureRankingsCreator:
             raise ValueError(f"Unknown hook location: {hook_location}")
 
         for inputs, _ in valid_loader:
-            inputs = inputs.to(device)
+            inputs = inputs.to(self.device)
 
             with torch.no_grad():
                 outputs = self.currentModel(inputs)
@@ -693,7 +679,7 @@ class FeatureRankingsCreator:
 
                 # Iterate over samples in the batch
                 for i in range(inputs.size(0)):
-                    sample_importance = torch.zeros(len(self.selected_features), device=device)
+                    sample_importance = torch.zeros(len(self.selected_features), device=self.device)
 
                     for activation in activations:
                         if activation.dim() == 3:  # If activations have time steps
@@ -746,13 +732,13 @@ class FeatureRankingsCreator:
         all_attributions = []  # To accumulate attributions for all samples
 
         # Load the model and switch to evaluation mode
-        self.load_model(self.currentModelName)
+        # self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
         self.currentModel.eval()
 
         # Loop over validation loader
         for inputs, _ in valid_loader:
-            inputs = inputs.to(device)
+            inputs = inputs.to(self.device)
 
             # Define baselines based on the type
             if baseline == 'ZEROES':
@@ -837,13 +823,13 @@ class FeatureRankingsCreator:
     '''
 
     def compute_shap(self, valid_loader, background_size, nsamples, explainer_type, actif_variant):
-        self.load_model(self.currentModelName)
+        # self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
 
         shap_values_accumulated = []
 
         for input_batch, _ in valid_loader:
-            input_batch = input_batch.to(device)
+            input_batch = input_batch.to(self.device)
 
             # Choose background data for SHAP (use first few samples)
             background_data = input_batch[:background_size]
@@ -860,7 +846,7 @@ class FeatureRankingsCreator:
 
             elif explainer_type == 'kernel':
                 # Use PyTorchModelWrapper_SHAP for KernelExplainer to handle 3D input and aggregate the output
-                model_wrapper = PyTorchModelWrapper_SHAP(self.currentModel)
+                model_wrapper = PyTorchModelWrapper_SHAP(self.currentModel, self.device)
 
                 # Convert background data to NumPy and keep it in 3D format
                 background_data_np = background_data.cpu().numpy()
@@ -877,7 +863,7 @@ class FeatureRankingsCreator:
         shap_values_np = np.concatenate(shap_values_accumulated, axis=0)
 
         # Reshape SHAP values to match the original input format (num_samples, timesteps, features)
-        shap_values_reshaped = shap_values_np.reshape(-1, 10, 38)
+        shap_values_reshaped = shap_values_np.reshape(-1, 10, 34)
 
         # Aggregate SHAP values over time steps (axis=1) to get (num_samples, features)
         mean_shap_values_timesteps = np.mean(shap_values_reshaped, axis=1)
@@ -1086,11 +1072,10 @@ class FeatureRankingsCreator:
         Returns:
             List of feature importance scores based on feature shuffling and the selected ACTIF variant.
         """
-        self.load_model(self.currentModelName)
+        # self.load_model(self.currentModelName)
         print(f"INFO: Loaded Model: {self.currentModel.__class__.__name__}")
 
         cols = self.selected_features
-        device = next(self.currentModel.parameters()).device  # Ensure we are using the correct device
 
         # Calculate the baseline MAE (Mean Absolute Error)
         overall_baseline_mae, _ = self.calculateBaseLine(self.currentModel, valid_loader)
@@ -1113,7 +1098,7 @@ class FeatureRankingsCreator:
 
                 for X_batch, y_batch in valid_loader:
                     batch_size = X_batch.size(0)
-                    X_batch, y_batch = X_batch.to(device), y_batch.to(device)
+                    X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
 
                     # Clone the batch and shuffle the current feature
                     X_batch_shuffled = X_batch.clone()
@@ -1226,26 +1211,26 @@ class FeatureRankingsCreator:
 
     def calculateBaseLine(self, trained_model, valid_loader):
         results = {}
-        top_features = input_features
-        feature_count = len(top_features) - 2  # Adjust based on your specific needs
-        remaining_features = top_features
-        print(f"START: Evaluating BASELINE Model.")
+        # top_features = input_features
+        # feature_count = len(top_features) - 2  # Adjust based on your specific needs
+        # remaining_features = top_features
+        # print(f"START: Evaluating BASELINE Model.")
 
         # Assign the top features to the trainer
-        self.currentDataset.current_features = remaining_features
-        self.currentDataset.load_data()
-        self.trainer.dataset = self.currentDataset
+        # self.currentDataset.current_features = remaining_features
+        # self.currentDataset.load_data()
+        # self.trainer.dataset = self.currentDataset
 
-        self.trainer.setup(feature_count=feature_count, feature_names=remaining_features)
+        # self.trainer.setup()  # feature_count=feature_count, feature_names=remaining_features)
 
         # Perform cross-validation and get the performance results for each run
-        full_feature_performance = self.trainer.cross_validate(num_epochs=500, loocv=False,
-                                                               num_repeats=len(self.trainer.dataset.subject_list))
+        full_feature_performance = self.trainer.cross_validate(num_epochs=500)
 
         results['Baseline'] = full_feature_performance
 
         # Save baseline results
-        performance_evaluation_file = os.path.join(self.paths["evaluation_metrics_save_path"] , "performance_evaluation_metrics.txt")
+        performance_evaluation_file = os.path.join(self.paths["evaluation_metrics_save_path"],
+                                                   "performance_evaluation_metrics.txt")
 
         print("Baseline saved to ", performance_evaluation_file)
         with open(performance_evaluation_file, "a") as file:
@@ -1262,8 +1247,6 @@ class FeatureRankingsCreator:
         with open(jsonFile, 'r') as f:
             hyperparameters = json.load(f)
 
-        model = FOVAL(input_size=featureCount, embed_dim=hyperparameters['embed_dim'],
-                      fc1_dim=hyperparameters['fc1_dim'],
-                      dropout_rate=hyperparameters['dropout_rate']).to(device)
+        model = Foval(feature_count=featureCount, device=self.device)
 
         return model, hyperparameters

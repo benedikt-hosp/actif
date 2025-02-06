@@ -1,4 +1,5 @@
 import math
+import pickle
 
 import torch
 import numpy as np
@@ -12,7 +13,11 @@ from sklearn.preprocessing import (
 )
 import warnings
 
-from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from src.models.FOVAL.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
+    detect_and_remove_outliers_in_features_iqr, clean_data, global_normalization, subject_wise_normalization, \
+    separate_features_and_targets
+from src.models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
 
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)
@@ -36,6 +41,7 @@ class GIWDataset(AbstractDatasetClass):
         self.subject_list = None
         self.sequence_length = 10  # sequence_length
         self.data_dir = data_dir
+        self.current_features = None
         self.best_transformers = None
         self.minDepth = 0.35  # in meter
         self.maxDepth = 3
@@ -386,6 +392,8 @@ class GIWDataset(AbstractDatasetClass):
 
         # Feature creation and normalization
         data = self.create_features(data)
+        print("Features in Dataaset are ", self.current_features)
+        data = data[self.current_features]
         # if is_train:
         #     data.to_csv('checkpoint_features_2.csv')
         data = self.normalize_data(data)

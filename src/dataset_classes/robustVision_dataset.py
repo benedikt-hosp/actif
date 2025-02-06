@@ -1,3 +1,5 @@
+import pickle
+
 import torch
 import numpy as np
 import pandas as pd
@@ -10,11 +12,11 @@ from sklearn.preprocessing import (
 )
 import warnings
 
-from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from implementation.models.FOVAL.foval_preprocessor import clean_data, detect_and_remove_outliers_in_features_iqr, \
-    remove_outliers_in_labels, binData, createFeatures, global_normalization, subject_wise_normalization, \
+from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from src.models.FOVAL.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
+    detect_and_remove_outliers_in_features_iqr, clean_data, global_normalization, subject_wise_normalization, \
     separate_features_and_targets
-from implementation.models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
+from src.models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
 
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)
@@ -29,17 +31,16 @@ class RobustVisionDataset(AbstractDatasetClass):
         """
         super().__init__(data_dir, sequence_length)
         self.input_data = None
-        self.name = "ROBUSTVISION"
         self.subject_list = None
         self.sequence_length = 10  # sequence_length
         self.data_dir = data_dir
-        print("Data dir ", self.data_dir)
         self.best_transformers = None
         self.minDepth = 0.35  # in meter
         self.maxDepth = 3
         self.subject_scaler = RobustScaler()  # or any other scaler
-        self.current_features = None
         self.feature_scaler = None
+        self.isGIW= False # für mixed muss das auf True stehen sonst False
+        self.current_features = None
         self.target_scaler = None
         self.target_column_name = 'Gt_Depth'
         self.subject_id_column = 'SubjectID'
@@ -137,7 +138,7 @@ class RobustVisionDataset(AbstractDatasetClass):
         @param data_in:
         @return:
         """
-        data_in = createFeatures(data_in, self.current_features)
+        data_in = createFeatures(data_in, isGIW=self.isGIW)
 
         return data_in
 
@@ -330,11 +331,11 @@ class RobustVisionDataset(AbstractDatasetClass):
         return train_loader, val_loader, test_loader, input_size
 
     def prepare_loader(self, subject_index, batch_size, is_train=False):
-        subjects = subject_index.tolist() if isinstance(subject_index, np.ndarray) else subject_index
-        subjects = subjects if isinstance(subjects, list) else [subjects]
-
+        subjects = subject_index if isinstance(subject_index, list) else [subject_index]
         # print(f"Preparing data for subjects: {subjects}")
         data = self.input_data[self.input_data['SubjectID'].isin(subjects)]
+        # if is_train:
+        #     data.to_csv('checkpoint_raw_1.csv')
 
         # Check if the data is empty before proceeding
         if data.empty:
@@ -342,22 +343,42 @@ class RobustVisionDataset(AbstractDatasetClass):
 
         # Feature creation and normalization
         data = self.create_features(data)
+        print("Features in Dataaset are ", self.current_features)
+        data = data[self.current_features]
+
+        # if is_train:
+        #     data.to_csv('checkpoint_features_2.csv')
         data = self.normalize_data(data)
 
         # Apply transformations if necessary
         if is_train:
+            #     data.to_csv('checkpoint_normalized_3.csv')
+
             data = self.calculate_transformations_for_features(data)
+            # data.to_csv('checkpoint_transformed_4.csv')
+
         else:
             data = self.apply_transformations_on_features(data)
 
         # Scale features and target (transform only using the fitted scaler)
+        # data = self.scale_features(data, isTrain=is_train)
         data = self.scale_target(data, isTrain=is_train)
+        # if is_train:
+        #     data.to_csv('checkpoint_scaled_5.csv')
+
         # Generate sequences
         sequences = self.create_sequences(data)
         features, targets = separate_features_and_targets(sequences)
 
         # Convert to tensors and create data loader
-        features_tensor, targets_tensor = create_lstm_tensors_dataset(features, targets, is_train)
+        features_tensor, targets_tensor = create_lstm_tensors_dataset(features, targets)
         data_loader = create_dataloaders_dataset(features_tensor, targets_tensor, batch_size=batch_size)
+
+        # if is_train:
+        #     # Assuming your list is called sequences
+        #     with open('train_sequences_new.pkl', 'wb') as f:
+        #         pickle.dump(sequences, f)
+
+        # sequences.to_pickle("train_sequences_new.pkl")
 
         return data_loader

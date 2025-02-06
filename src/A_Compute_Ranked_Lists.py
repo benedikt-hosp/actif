@@ -3,10 +3,13 @@ import torch
 import pandas as pd
 import numpy as np
 
-from implementation.models.FOVAL.foval_trainer import FOVALTrainer
+from src.dataset_classes.giw_dataset import GIWDataset
+from src.dataset_classes.TuftsDataset import TuftsDataset
+from src.models.FOVAL.foval_trainer import FOVALTrainer
 from FeatureRankingsCreator import FeatureRankingsCreator
+from src.models.FOVAL.foval_preprocessor import input_features
 import warnings
-from implementation.dataset_classes.robustVision_dataset import RobustVisionDataset
+from src.dataset_classes.robustVision_dataset import RobustVisionDataset
 
 # ================ Display options
 warnings.filterwarnings('ignore')
@@ -18,14 +21,14 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 # ================ Device options
-device = torch.device("mps")  # Replace 0 with the device number for your other GPU
+device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
 model_save_dir = "models"
 os.makedirs(model_save_dir, exist_ok=True)
-BASE_DIR = '../'
+BASE_DIR = './'
 MODEL = "FOVAL"
-DATASET_NAME = "ROBUSTVISION"  # "GIW"  "TUFTS"
+DATASET_NAME = "TUFTS"  # "ROBUSTVISION"  "TUFTS" "GIW"
 
 
 def build_paths(base_dir):
@@ -54,22 +57,34 @@ if __name__ == '__main__':
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     datasetName = DATASET_NAME
     if DATASET_NAME == "ROBUSTVISION":
-        num_repetitions = 25  # Define the number of repetitions for 80/20 splits
-        dataset = RobustVisionDataset(data_dir=paths["data_dir"], sequence_length=10)
+        dataset = RobustVisionDataset(data_dir=paths["data_dir"])
         dataset.load_data()
+        num_repetitions = len(dataset.subject_list)
+    elif DATASET_NAME == "GIW":
+        dataset = GIWDataset(data_dir=paths["data_dir"], trial_name="T4_tea_making")
+        dataset.load_data()
+        num_repetitions = len(dataset.subject_list)
+    elif DATASET_NAME == "TUFTS":
+        dataset = TuftsDataset(data_dir=paths["data_dir"])
+        dataset.load_data()
+        num_repetitions = len(dataset.subject_list)
+    else:
+        print("No dataset chosen.")
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 2. Define Model
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     if MODEL == "FOVAL":
         trainer = FOVALTrainer(config_path=paths["config_path"], dataset=dataset, device=device,
-                               save_intermediates_every_epoch=False)
+                               feature_names=input_features, save_intermediates_every_epoch=False)
+        trainer.setup()
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 3. Create Ranked Lists
     # ACTIF Creation: Calculate feature importance ranking for all methods collect sorted ranking list, memory usage, and computation speed
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
-    fmv = FeatureRankingsCreator(modelName=MODEL, datasetName=DATASET_NAME, dataset=dataset, trainer=trainer, paths=paths)
+    fmv = FeatureRankingsCreator(modelName=MODEL, datasetName=DATASET_NAME, dataset=dataset, trainer=trainer,
+                                 paths=paths, device=device)
     fmv.process_methods()
 
 '''
@@ -77,11 +92,11 @@ LOGs:
 14.10.2024:
     - Next steps are 
      a) evaluate performance of the created lists: 
-     FIRST, because I am not sure how well ACTIF turns out with DeepLift and NISP, only if ACTIF shows good performance in comparison
+     FIRST, because I am not sure how well ACTIF turns out with DeepLift and deepactif, only if ACTIF shows good performance in comparison
      b) apply methods on other dataset
      c) pick another model with 2 datasets and do the same
      
-     LRP, IG, SHAP, Ablation, Shuffle, ACTIF, DeepLift, NISP, GradCAM, GradCAM++, Saliency Maps, Attention Maps.
+     LRP, IG, SHAP, Ablation, Shuffle, ACTIF, DeepLift, deepactif, GradCAM, GradCAM++, Saliency Maps, Attention Maps.
 
 01.02.2025:
     
@@ -95,7 +110,7 @@ LOGs:
     # 2. Methoden:
     # 2.1 Modellagnostische Methoden (Blackbox-Modelle interpretieren)
     # Deeplift:     zero, random, mean baselines
-    # NISP:
+    # deepactif:
     # IntGrad:
     # SHAP (KernelSHAP, TreeSHAP)
     # Ablation:

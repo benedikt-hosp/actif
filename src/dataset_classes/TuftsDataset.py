@@ -1,4 +1,5 @@
 import math
+import pickle
 
 import torch
 import numpy as np
@@ -12,11 +13,11 @@ from sklearn.preprocessing import (
 )
 import warnings
 
-from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from data.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
+from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from src.models.FOVAL.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
     detect_and_remove_outliers_in_features_iqr, clean_data, global_normalization, subject_wise_normalization, \
     separate_features_and_targets
-from data.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
+from src.models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
 
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)
@@ -33,16 +34,21 @@ class TuftsDataset(AbstractDatasetClass):
         """
         super().__init__(data_dir, sequence_length=10)
         self.data_dir = data_dir
+        self.name = None
         self.test_split_size = test_split_size
         self.input_data = None
         self.target_column_name = 'Gt_Depth'
+        self.features = None
         self.input_data = None
         self.subject_list = None
+        self.current_features = None
         self.sequence_length = 10  # sequence_length
         self.data_dir = data_dir
         self.best_transformers = None
+        self.isGIW= False # für mixed muss das auf True stehen sonst False
         self.minDepth = 0.35  # in meter
         self.maxDepth = 3
+        self.current_features = None
         self.subject_scaler = RobustScaler()  # or any other scaler
         self.feature_scaler = None
         self.target_scaler = None
@@ -182,7 +188,7 @@ class TuftsDataset(AbstractDatasetClass):
         @param data_in:
         @return:
         """
-        data_in = createFeatures(data_in, isGIW=False)
+        data_in = createFeatures(data_in, isGIW=self.isGIW)
 
         return data_in
 
@@ -371,8 +377,9 @@ class TuftsDataset(AbstractDatasetClass):
         test_loader = self.prepare_loader(test_index, batch_size, is_train=False) if test_index is not None else None
 
         input_size = train_loader.dataset[0][0].shape[1]  # Assuming the first dimension is batch_size
+        print("Input size: ", input_size)
 
-        return train_loader, val_loader, test_loader, input_size
+        return train_loader, val_loader, input_size
 
     def prepare_loader(self, subject_index, batch_size, is_train=False):
         subjects = subject_index if isinstance(subject_index, list) else [subject_index]
@@ -388,8 +395,9 @@ class TuftsDataset(AbstractDatasetClass):
 
         # Feature creation and normalization
         data = self.create_features(data)
-        # if is_train:
-        #     data.to_csv('checkpoint_features_2.csv')
+
+        print("Features in Dataaset are ", self.current_features)
+        data = data[self.current_features]
         data = self.normalize_data(data)
 
         # Apply transformations if necessary

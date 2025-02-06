@@ -124,11 +124,11 @@ class AbstractDatasetClass(ABC):
         """
         train_loader = self.prepare_loader(train_index, batch_size, is_train=True)
         val_loader = self.prepare_loader(val_index, batch_size, is_train=False) if val_index is not None else None
-        test_loader = self.prepare_loader(test_index, batch_size, is_train=False) if test_index is not None else None
+        # test_loader = self.prepare_loader(test_index, batch_size, is_train=False) if test_index is not None else None
 
         input_size = train_loader.dataset[0][0].shape[1]  # Assuming the first dimension is batch_size
 
-        return train_loader, val_loader, test_loader, input_size
+        return train_loader, val_loader, input_size
 
     @abstractmethod
     def prepare_loader(self, subject_index, batch_size, is_train=False):
