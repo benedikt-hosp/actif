@@ -105,3 +105,10 @@ docs/_build/
 # Other files
 *.DS_Store
 /src/cache_dir/
+
+
+!LICENSE.txt
+!data/
+!docs/
+!models/
+!notebooks/
