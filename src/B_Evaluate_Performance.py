@@ -24,14 +24,14 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 # ================ Device options
-device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
+device = torch.device("cuda")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
 model_save_dir = "models"
 os.makedirs(model_save_dir, exist_ok=True)
 BASE_DIR = './'
 MODEL = "FOVAL"
-DATASET_NAME = "TUFTS"  # "ROBUSTVISION"  "TUFTS" "GIW"
+DATASET_NAME = "ROBUSTVISION"  # "ROBUSTVISION"  "TUFTS" "GIW"
 
 
 def build_paths(base_dir):
@@ -64,14 +64,18 @@ def get_top_features(importances, percentage):
 
 
 def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, num_repetitions=2):
-    percentages = [0.1, 0.2, 0.3, 0.4]  # , 0.2, 0.3]
+    percentages = [0.1,  0.4]  # , 0.2, 0.3]
     results = {}
     list_name = f"{modelName}_{dataset.name}_{methodName}"
     results[list_name] = {}
 
+    print("Loc 1: ")
+    save_path = os.path.join(save_path, "performance_evaluation_metrics.txt")
+
     # Dynamically create the header based on the number of repetitions
     run_columns = ", ".join([f"Run {i + 1}" for i in range(num_repetitions)])
     header = f"Method, Percent, {run_columns}, Mean MAE, Standard Deviation\n"
+
 
     for percent in percentages:
         top_features = get_top_features(feature_list, percent)
@@ -89,7 +93,7 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
         trainer.setup(features=remaining_features)
 
         # Perform cross-validation and get the performance results for each run
-        fold_accuracies = trainer.cross_validate(num_epochs=500)
+        fold_accuracies = trainer.cross_validate(num_epochs=200)
 
         # Calculate mean and standard deviation
         mean_performance = np.mean(fold_accuracies)
@@ -99,12 +103,14 @@ def test_list(feature_list, modelName, dataset, methodName, trainer, save_path, 
         runs_values = ", ".join([f"{accuracy:.4f}" for accuracy in fold_accuracies])
         result_line = (f"{list_name}, {percent * 100:.0f}%, "
                        f"{runs_values}, {mean_performance:.4f}, {std_dev_performance:.4f}\n")
+        # result_line = "{}\t{:.0f}%\t{}\t{:.4f}\t{:.4f}\n".format(
+        #     list_name, percent * 100, "\t".join(map(str, runs_values)), mean_performance, std_dev_performance
+        # )
 
-        # Write results to file
         try:
             if not os.path.exists(save_path):
                 with open(save_path, "w") as file:
-                    file.write("ListName, Percentage, Runs, Mean, StdDev\n")  # Header
+                    file.write(header + "\n")  # Header
             with open(save_path, "a") as file:
                 file.write(result_line)
         except Exception as e:
@@ -173,7 +179,7 @@ if __name__ == '__main__':
     datasetName = DATASET_NAME
     if DATASET_NAME == "ROBUSTVISION":
         # num_repetitions = 25  # Define the number of repetitions for 80/20 splits
-        dataset = RobustVisionDataset(data_dir=paths["data_dir"])
+        dataset = RobustVisionDataset(data_dir=paths["data_dir"], sequence_length=10)
         dataset.name = DATASET_NAME
         dataset.load_data()
         num_repetitions = len(dataset.subject_list)
@@ -200,10 +206,10 @@ if __name__ == '__main__':
 
     # 1. Baseline performance evaluation
     print(f" 1. Testing baseline {MODEL} on dataset {datasetName}")
-    # baseline_performance = test_baseline_model(trainer, modelName, dataset, paths["save_path"], num_repetitions)
+    baseline_performance = test_baseline_model(trainer, MODEL, dataset, paths["save_path"], num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
-    for file_name in reversed(os.listdir(paths["results_folder_path"])):
+    for file_name in os.listdir(paths["results_folder_path"]):
         if file_name.endswith(".csv"):
             file_path = os.path.join(paths["results_folder_path"], file_name)
             # print("File path is", file_path)
@@ -214,3 +220,8 @@ if __name__ == '__main__':
             print(f" 2. Evaluating feature list: {method}")
             test_list(feature_list=current_feature_list, dataset=dataset, modelName=MODEL, methodName=method,
                       trainer=trainer, save_path=paths["evaluation_metrics_save_path"], num_repetitions=num_repetitions)
+
+
+
+
+# Ablation inv: 10%  7.063386930672503 tufts

@@ -16,12 +16,22 @@ warnings.filterwarnings('ignore')
 pd.set_option('display.max_columns', None)
 pd.option_context('mode.use_inf_as_na', True)
 
+# Check how many GPUs are available
+# print("Available GPUs:", torch.cuda.device_count())
+
+# List GPU names
+# for i in range(torch.cuda.device_count()):
+#     print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+
+# Check which GPU is currently being used
+# print("Current GPU:", torch.cuda.current_device())
+
 # ================ Randomization seed
 np.random.seed(42)
 torch.manual_seed(42)
 
 # ================ Device options
-device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
+device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
 model_save_dir = "models"
@@ -51,6 +61,7 @@ def build_paths(base_dir):
 if __name__ == '__main__':
     # Parameterize MODEL and DATASET folders
     paths = build_paths(BASE_DIR)
+    torch.cuda.empty_cache()
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 1. Define Dataset
@@ -77,7 +88,7 @@ if __name__ == '__main__':
     if MODEL == "FOVAL":
         trainer = FOVALTrainer(config_path=paths["config_path"], dataset=dataset, device=device,
                                feature_names=input_features, save_intermediates_every_epoch=False)
-        trainer.setup()
+        trainer.setup(features=input_features)
 
     # == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
     # 3. Create Ranked Lists

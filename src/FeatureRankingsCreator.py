@@ -7,12 +7,12 @@ import pandas as pd
 import shap
 from tqdm import tqdm
 from captum.attr import IntegratedGradients, FeatureAblation, DeepLift
-from memory_profiler import memory_usage
+from memory_profiler import memory_usage, profile
 import torch
 from torch.cuda.amp import autocast
 from src.models.FOVAL.foval_preprocessor import input_features
 import json
-from src.models.FOVAL.foval import Foval
+from src.models.FOVAL.FOVAL import Foval
 
 torch.backends.cudnn.enabled = False
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
@@ -73,88 +73,88 @@ class FeatureRankingsCreator:
         self.memory_data = []
         self.methods = [
             # ABLATION
-            'ablation_MEAN',
-            'ablation_MEANSTD',
-            'ablation_INV',
-            'ablation_PEN',
-
-            # DeepACTIF Input layer
-            'deepactif_input_MEAN',
-            'deepactif_input_MEANSTD',
-            'deepactif_input_INV',
-            'deepactif_input_PEN',
-
-            # DeepACTIF LSTM layer
-            'deepactif_lstm_MEAN',
-            'deepactif_lstm_MEANSTD',
-            'deepactif_lstm_INV',
-            'deepactif_lstm_PEN',
-
-            # DeepACTIF penultimate layer
-            'deepactif_penultimate_MEAN',
-            'deepactif_penultimate_MEANSTD',
-            'deepactif_penultimate_INV',
-            'deepactif_penultimate_PEN',
+            # 'ablation_MEAN',
+            # 'ablation_MEANSTD',
+            # 'ablation_INV',
+            # 'ablation_PEN',
+            #
+            # # DeepACTIF Input layer
+            # 'deepactif_input_MEAN',
+            # 'deepactif_input_MEANSTD',
+            # 'deepactif_input_INV',
+            # 'deepactif_input_PEN',      # error
+            #
+            # # DeepACTIF LSTM layer
+            # 'deepactif_lstm_MEAN',
+            # 'deepactif_lstm_MEANSTD',
+            # 'deepactif_lstm_INV',
+            # 'deepactif_lstm_PEN',
+            #
+            # # DeepACTIF penultimate layer
+            # 'deepactif_penultimate_MEAN',
+            # 'deepactif_penultimate_MEANSTD',
+            # 'deepactif_penultimate_INV',
+            # 'deepactif_penultimate_PEN',
 
             # SHUFFLE
-            'shuffle_MEAN',
-            'shuffle_MEANSTD',
-            'shuffle_INV',
-            'shuffle_PEN',
-
-            # Deeplift ZERO Baseline
-            'deeplift_zero_MEAN',
-            'deeplift_zero_MEANSTD',
-            'deeplift_zero_INV',
-            'deeplift_zero_PEN',
-
-            # Deeplift Random Baseline
-            'deeplift_random_MEAN',
-            'deeplift_random_MEANSTD',
-            'deeplift_random_INV',
-            'deeplift_random_PEN',
-
-            # Deeplift Mean Baseline
-            'deeplift_mean_MEAN',
-            'deeplift_mean_MEANSTD',
-            'deeplift_mean_INV',
-            'deeplift_mean_PEN',
+            # 'shuffle_MEAN',
+            # 'shuffle_MEANSTD',
+            # 'shuffle_INV',
+            # 'shuffle_PEN',
+            #
+            # # Deeplift ZERO Baseline
+            # 'deeplift_zero_MEAN',
+            # 'deeplift_zero_MEANSTD',
+            # 'deeplift_zero_INV',
+            # 'deeplift_zero_PEN',
+            #
+            # # Deeplift Random Baseline
+            # 'deeplift_random_MEAN',
+            # 'deeplift_random_MEANSTD',
+            # 'deeplift_random_INV',
+            # 'deeplift_random_PEN',
+            #
+            # # Deeplift Mean Baseline
+            # 'deeplift_mean_MEAN',
+            # 'deeplift_mean_MEANSTD',
+            # 'deeplift_mean_INV',
+            # 'deeplift_mean_PEN',
 
             # IG Zero Baseline
-            'intGrad_zero_MEAN',        # no memory
-            'intGrad_zero_MEANSTD',
-            'intGrad_zero_INV',
-            'intGrad_zero_PEN',
+            'intGrad_zero_MEAN',        # not enough memory
+            'intGrad_zero_MEANSTD', # not enough memory
+            'intGrad_zero_INV', # not enough memory
+            'intGrad_zero_PEN', # not enough memory
 
             # IG Random Baseline
-            'intGrad_random_MEAN',
-            'intGrad_random_MEANSTD',
-            'intGrad_random_INV',
-            'intGrad_random_PEN',
+            'intGrad_random_MEAN', # not enough memory
+            'intGrad_random_MEANSTD', # not enough memory
+            'intGrad_random_INV', # not enough memory
+            'intGrad_random_PEN', # not enough memory
 
             # IG MEAN Baseline
-            'intGrad_mean_MEAN',
-            'intGrad_mean_MEANSTD',
-            'intGrad_mean_INV',
-            'intGrad_mean_PEN',
+            'intGrad_mean_MEAN', # not enough memory
+            'intGrad_mean_MEANSTD', # not enough memory
+            'intGrad_mean_INV', # not enough memory
+            'intGrad_mean_PEN', # not enough memory
 
             # SHAP MEM
-            'shap_mem_MEAN',
-            'shap_mem_MEANSTD',
-            'shap_mem_INV',
-            'shap_mem_PEN',
-
-            # SHAP TIME
-            'shap_time_MEAN',
-            'shap_time_MEANSTD',
-            'shap_time_INV',
-            'shap_time_PEN',
-
-            # SHAP PREC
-            'shap_prec_MEAN',
-            'shap_prec_MEANSTD',
-            'shap_prec_INV',
-            'shap_prec_PEN',
+            # 'shap_mem_MEAN',
+            # 'shap_mem_MEANSTD',
+            # 'shap_mem_INV',
+            # 'shap_mem_PEN',
+            #
+            # # SHAP TIME
+            # 'shap_time_MEAN',
+            # 'shap_time_MEANSTD',
+            # 'shap_time_INV',
+            # 'shap_time_PEN',
+            #
+            # # SHAP PREC
+            # 'shap_prec_MEAN',
+            # 'shap_prec_MEANSTD',
+            # 'shap_prec_INV',
+            # 'shap_prec_PEN',
         ]
 
     def setup_directories(self):
@@ -165,13 +165,14 @@ class FeatureRankingsCreator:
             print(f"Evaluating method: {method}")
             aggregated_importances = self.calculate_ranked_list_by_method(method=method)
             self.sort_importances_based_on_attribution(aggregated_importances, method=method)
-
+            torch.cuda.empty_cache()
     def calculate_ranked_list_by_method(self, method='captum_intGrad'):
         aggregated_importances = []
         all_execution_times = []
         all_memory_usages = []
 
         for i, test_subject in enumerate(self.subject_list):
+            torch.cuda.empty_cache()
             print(f"Processing subject {i + 1}/{len(self.subject_list)}: {test_subject}")
 
             # create data loaders
@@ -536,7 +537,7 @@ class FeatureRankingsCreator:
     '''
         Deep Lift
     '''
-
+    @profile
     def compute_deeplift(self, valid_loader, baseline_type, actif_variant):
         """
         Computes feature importance using DeepLIFT and aggregates it based on the selected ACTIF variant.
@@ -619,6 +620,7 @@ class FeatureRankingsCreator:
         deepactif
     '''
 
+    @profile
     def compute_deepactif(self, valid_loader, hook_location, actif_variant):
         """
             deepactif calculation with different layer hooks based on version.
@@ -1078,7 +1080,8 @@ class FeatureRankingsCreator:
         cols = self.selected_features
 
         # Calculate the baseline MAE (Mean Absolute Error)
-        overall_baseline_mae, _ = self.calculateBaseLine(self.currentModel, valid_loader)
+        # overall_baseline_mae = self.calculateBaseLine(self.currentModel, valid_loader)
+        overall_baseline_mae = 8.35489716541312
         print(f"Baseline MAE: {overall_baseline_mae}")
 
         num_features = len(cols)

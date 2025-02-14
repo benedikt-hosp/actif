@@ -16,7 +16,7 @@ import warnings
 from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
 from src.models.FOVAL.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
     detect_and_remove_outliers_in_features_iqr, clean_data, global_normalization, subject_wise_normalization, \
-    separate_features_and_targets
+    separate_features_and_targets, input_features
 from src.models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
 
 warnings.filterwarnings("ignore")
@@ -41,14 +41,13 @@ class TuftsDataset(AbstractDatasetClass):
         self.features = None
         self.input_data = None
         self.subject_list = None
-        self.current_features = None
+        self.current_features = input_features
         self.sequence_length = 10  # sequence_length
         self.data_dir = data_dir
         self.best_transformers = None
         self.isGIW= False # für mixed muss das auf True stehen sonst False
         self.minDepth = 0.35  # in meter
         self.maxDepth = 3
-        self.current_features = None
         self.subject_scaler = RobustScaler()  # or any other scaler
         self.feature_scaler = None
         self.target_scaler = None

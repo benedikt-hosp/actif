@@ -40,7 +40,7 @@ class RobustVisionDataset(AbstractDatasetClass):
         self.subject_scaler = RobustScaler()  # or any other scaler
         self.feature_scaler = None
         self.isGIW= False # für mixed muss das auf True stehen sonst False
-        self.current_features = None
+        self.current_features = input_features
         self.target_scaler = None
         self.target_column_name = 'Gt_Depth'
         self.subject_id_column = 'SubjectID'

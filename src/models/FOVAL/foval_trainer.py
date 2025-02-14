@@ -1,3 +1,4 @@
+import gc
 import json
 import pickle
 import os
@@ -17,7 +18,7 @@ from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
 # from data.AbstractDatasetClass import AbstractDatasetClass
 from src.dataset_classes.robustVision_dataset import RobustVisionDataset
 from src.models.FOVAL.utilities import create_optimizer, analyzeResiduals
-from src.models.FOVAL.foval import Foval
+from src.models.FOVAL.FOVAL import Foval
 from torch.cuda.amp import autocast, GradScaler
 
 
@@ -60,7 +61,7 @@ class FOVALTrainer:
         self.sequence_length = 10  # self.dataset.sequence_length
         self.csv_filename = "training_results.csv"
         self.device = device
-        print(f"Device is: {self.device}")
+        print(f"Device in trainer is: {self.device}")
 
         if self.dataset.subject_list is not None:
             self.n_splits = len(self.dataset.subject_list)
@@ -90,7 +91,7 @@ class FOVALTrainer:
         with open(config_path, 'r') as f:
             hyper_parameters = json.load(f)
         self.hyperparameters = hyper_parameters
-        self.batch_size = hyper_parameters['batch_size']
+        self.batch_size = 12 # hyper_parameters['batch_size']
         self.learning_rate = hyper_parameters['learning_rate']
         self.weight_decay = hyper_parameters['weight_decay']
         self.fc1_dim = hyper_parameters['fc1_dim']
@@ -196,7 +197,7 @@ class FOVALTrainer:
         print(f"Best Fold with MAE: {best_fold}")
         average_accuracy = sum(fold_accuracies) / len(fold_accuracies)
         print(f"Average Cross-Validation MSE: {average_accuracy}")
-        return average_accuracy
+        return fold_accuracies
 
     def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10):
         # Ensure that val_index is not None and has elements
@@ -211,8 +212,8 @@ class FOVALTrainer:
             validation_participant_name = "unknown"
 
         # Set the save path using the validation participant's name
-        self.save_path = os.path.join("results", validation_participant_name)
-        os.makedirs(self.save_path, exist_ok=True)  # Create the directory if it doesn't exist
+        # self.save_path = os.path.join("results", validation_participant_name)
+        # os.makedirs(self.save_path, exist_ok=True)  # Create the directory if it doesn't exist
 
         print(
             f"Train index: {train_index} and val index {validation_participant_name}, and test index {test_index}, and batch size {self.batch_size}")
@@ -276,7 +277,7 @@ class FOVALTrainer:
 
             # Example forward pass with mixed precision
             with autocast():
-                y_pred, _ = self.model(X_batch, return_intermediates=True)
+                y_pred = self.model(X_batch, return_intermediates=False)
                 smae_loss = smae_loss_fn(y_pred, y_batch)
             # Scaled backward pass
             scaler.scale(smae_loss).backward()
@@ -295,6 +296,9 @@ class FOVALTrainer:
             total_mse += mse_loss_fn(y_pred_inv, y_batch_inv).item() * y_batch.size(0)
             total_smae += smae_loss_fn(y_pred_inv, y_batch_inv).item() * y_batch.size(0)
             total_samples += y_batch.size(0)
+            del X_batch, y_pred, y_pred_inv
+            gc.collect()
+            torch.cuda.empty_cache()
 
         self.current_metrics["train_mae"] = total_mae / total_samples
         self.current_metrics["train_mse"] = total_mse / total_samples
@@ -315,7 +319,7 @@ class FOVALTrainer:
                 # if keyboard.is_pressed('q'):
                 #    break
                 X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
-                y_pred, intermediates = self.model(X_batch, return_intermediates=True)
+                y_pred = self.model(X_batch, return_intermediates=False)
 
                 y_pred = self.inverse_transform_target(y_pred)
                 y_batch = self.inverse_transform_target(y_batch)
@@ -327,6 +331,9 @@ class FOVALTrainer:
 
                 all_predictions.append(y_pred.cpu().numpy())
                 all_true_values.append(y_batch.cpu().numpy())
+                del X_batch, y_pred, y_batch
+                gc.collect()
+                torch.cuda.empty_cache()
 
         # Store metrics for this epoch
         self.current_metrics["val_mae"] = total_val_mae / total_val_samples
@@ -335,8 +342,8 @@ class FOVALTrainer:
         self.current_metrics["val_r2"] = r2_score(np.concatenate(all_true_values), np.concatenate(all_predictions))
 
         # Save activations and weights based on the condition
-        if self.save_intermediates_every_epoch or is_last_epoch:
-            self.save_activations_and_weights(intermediates, "intermediates", self.save_path)
+        # if self.save_intermediates_every_epoch or is_last_epoch:
+        #     self.save_activations_and_weights(intermediates, "intermediates", self.save_path)
 
     def inverse_transform_target(self, y_transformed):
         """
@@ -362,7 +369,7 @@ class FOVALTrainer:
             self.best_metrics["smae"] = self.current_metrics["val_smae"]
             self.best_metrics["mae"] = self.current_metrics["val_mae"]
 
-            torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best_model_state_dict.pth'))
+            # torch.save(self.model.state_dict(), os.path.join(self.save_path, 'best_model_state_dict.pth'))
             print(
                 f"Model saved at epoch {epoch} with SMAE {self.current_metrics['val_smae']} and MAE {self.current_metrics['val_mae']}")
             self.patience_counter = 0
@@ -504,8 +511,8 @@ class FOVALTrainer:
         Save the model state dictionary after training.
         """
         # self.model.load_state_dict(torch.load(os.path.join(self.save_path, 'best_model_state_dict.pth')))
-        model_path = os.path.join(self.save_path, 'optimal_subject_model_state_dict.pth')
-        torch.save(self.model.state_dict(), model_path)
+        # model_path = os.path.join(self.save_path, 'optimal_subject_model_state_dict.pth')
+        # torch.save(self.model.state_dict(), model_path)
         print(f"Optimal model state dictionary saved at epoch {epoch}.")
 
     def set_save_path(self, fold_name):
