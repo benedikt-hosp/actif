@@ -14,11 +14,11 @@ torch.backends.cudnn.enabled = True
 
 
 import gc
-from implementation.models.FOVAL.FOVAL import FOVAL
-from implementation.models.FOVAL.foval_preprocessor import input_features
-from implementation.dataset_classes.robustVision_dataset import RobustVisionDataset
+from src.models.FOVAL.FOVAL import FOVAL
+from src.models.FOVAL.foval_preprocessor import input_features
+from src.dataset_classes.robustVision_dataset import RobustVisionDataset
 import warnings
-from implementation.models.FOVAL.foval_trainer import FOVALTrainer
+from src.models.FOVAL.foval_trainer import FOVALTrainer
 
 # ================ Display options
 warnings.filterwarnings('ignore')
@@ -29,7 +29,7 @@ pd.option_context('mode.use_inf_as_na', True)
 # print(torch.backends.cudnn.version())  # cuDNN version
 # print(torch.cuda.is_available())  # GPU availability
 # ================ Device options
-device = torch.device("cpu")  # Replace 0 with the device number for your other GPU
+device = torch.device("mps")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
 # print("Python version:", sys.version)
@@ -42,7 +42,7 @@ elif os.path.exists("/home/ec2-user"):  # AWS EC2-Umgebung
 elif os.path.exists("/kaggle/working"):
     BASE_DIR = "/kaggle/input/ACTIF_Upload"
 else:  # Lokale Umgebung
-    BASE_DIR = "/"
+    BASE_DIR = "./"
 
 np.random.seed(42)
 torch.manual_seed(42)
@@ -58,7 +58,7 @@ def build_paths(base_dir):
         "folder_path": os.path.join(base_dir, "results", "Foval", "ROBUSTVISION", "FeaturesRankings_Creation"),
         "save_path": os.path.join(base_dir, "results", "Foval", "ROBUSTVISION", "ACTIF_evaluation_results.txt"),
         "model_path" : os.path.join(base_dir, "models", "FOVAL", "config", "FOVAL"),
-        "config_path": os.path.join(base_dir, "models", "FOVAL", "config", "FOVAL.json"),
+        "config_path": os.path.join(base_dir, "models", "FOVAL", "config", "FOVAL"),
 
     }
     for path in paths.values():
@@ -213,7 +213,7 @@ if __name__ == '__main__':
 
     # 1. Baseline performance evaluation
     print(f" 1. Testing baseline {modelName} on dataset {datasetName}")
-    # baseline_performance = test_baseline_model(trainer, modelName, dataset, paths["save_path"], num_repetitions)
+    baseline_performance = test_baseline_model(trainer, modelName, dataset, paths["save_path"], num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
     for file_name in reversed(os.listdir(paths["folder_path"])):

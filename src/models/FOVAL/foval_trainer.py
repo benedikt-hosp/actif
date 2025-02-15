@@ -9,9 +9,9 @@ from torch import nn
 from sklearn.metrics import r2_score
 from sklearn.model_selection import KFold
 from torch.cuda.amp import GradScaler
-from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from implementation.models.FOVAL.FOVAL import FOVAL
-from implementation.models.FOVAL.utilities import create_optimizer
+from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from src.models.FOVAL.FOVAL import FOVAL
+from src.models.FOVAL.utilities import create_optimizer
 
 torch.backends.cudnn.enabled = False
 device = torch.device("mps")  # Replace 0 with the device number for your other GPU
