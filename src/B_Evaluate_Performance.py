@@ -31,7 +31,7 @@ model_save_dir = "models"
 os.makedirs(model_save_dir, exist_ok=True)
 BASE_DIR = './'
 MODEL = "FOVAL"
-DATASET_NAME = "ROBUSTVISION"  # "ROBUSTVISION"  "TUFTS" "GIW"
+DATASET_NAME = "TUFTS"  # "ROBUSTVISION"  "TUFTS" "GIW"
 
 
 def build_paths(base_dir):
@@ -206,7 +206,7 @@ if __name__ == '__main__':
 
     # 1. Baseline performance evaluation
     print(f" 1. Testing baseline {MODEL} on dataset {datasetName}")
-    baseline_performance = test_baseline_model(trainer, MODEL, dataset, paths["save_path"], num_repetitions)
+    # baseline_performance = test_baseline_model(trainer, MODEL, dataset, paths["save_path"], num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
     for file_name in os.listdir(paths["results_folder_path"]):
