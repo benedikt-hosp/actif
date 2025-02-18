@@ -12,7 +12,7 @@ from sklearn.preprocessing import (
 )
 import warnings
 
-from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
 
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)

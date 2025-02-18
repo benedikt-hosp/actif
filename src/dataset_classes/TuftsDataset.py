@@ -12,11 +12,11 @@ from sklearn.preprocessing import (
 )
 import warnings
 
-from implementation.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
-from data.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
+from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
+from src.models.FOVAL.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
     detect_and_remove_outliers_in_features_iqr, clean_data, global_normalization, subject_wise_normalization, \
     separate_features_and_targets
-from data.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
+from src.models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
 
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)
