@@ -84,7 +84,7 @@ class FOVALTrainer:
             self.features = features
             self.feature_count = len(features)-2
         self.load_model_checkpoint()
-        self.initialize_model()
+        # self.initialize_model()
 
     def load_model_checkpoint(self):
         config_path = self.config_path + ".json"
@@ -109,6 +109,7 @@ class FOVALTrainer:
             dropout_rate=self.hyperparameters['dropout_rate'],
             hidden_layer_size=self.hyperparameters['embed_dim']
         )
+        print("Initialized model!")
 
     def save_activations_and_weights(self, intermediates, filename, file_path):
         """
@@ -172,7 +173,7 @@ class FOVALTrainer:
         """
         kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=42)
         fold_accuracies = []
-
+        print("Device is ", self.device)
         for fold, (train_idx, val_idx) in enumerate(kf.split(self.dataset.subject_list)):
             print(f"\n\nStarting Fold {fold + 1}/{self.n_splits}")
 
@@ -199,33 +200,100 @@ class FOVALTrainer:
         print(f"Average Cross-Validation MSE: {average_accuracy}")
         return fold_accuracies
 
-    def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10):
-        # Ensure that val_index is not None and has elements
-        if val_index is not None and len(val_index) > 0:
-            validation_participant_name = val_index[0]
-            training_participant_name = train_index
+    # def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10):
+    #     # Ensure that val_index is not None and has elements
+    #     if val_index is not None and len(val_index) > 0:
+    #         validation_participant_name = val_index[0]
+    #         training_participant_name = train_index
+    #
+    #         print("Training Participants Names: ", training_participant_name)
+    #         print("Validation Participant Name: ", validation_participant_name, "\n")
+    #
+    #     else:
+    #         validation_participant_name = "unknown"
+    #
+    #     # Set the save path using the validation participant's name
+    #     # self.save_path = os.path.join("results", validation_participant_name)
+    #     # os.makedirs(self.save_path, exist_ok=True)  # Create the directory if it doesn't exist
+    #
+    #     print(
+    #         f"Train index: {train_index} and val index {validation_participant_name}, and test index {test_index}, and batch size {self.batch_size}")
+    #     # Prepare data loaders
+    #     self.train_loader, self.valid_loader, input_size = self.dataset.get_data_loader(
+    #         train_index, validation_participant_name)
+    #
+    #     self.target_scaler = self.dataset.target_scaler
+    #     self.optimizer, self.scheduler = create_optimizer(
+    #         model=self.model, learning_rate=self.learning_rate,
+    #         weight_decay=self.weight_decay)
+    #
+    #     with torch.profiler.profile(
+    #             schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
+    #             on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
+    #             record_shapes=True,
+    #             profile_memory=True,
+    #             with_stack=True
+    #     ) as profiler:
+    #         for epoch in range(num_epochs):
+    #             self.train_epoch(epoch)
+    #
+    #             if self.valid_loader:
+    #                 is_last_epoch = (epoch == num_epochs - 1)
+    #                 self.validate_epoch(epoch, is_last_epoch=is_last_epoch)
+    #
+    #             self.scheduler.step()
+    #
+    #             if self.check_early_stopping(epoch):
+    #                 break
+    #         profiler.step()  # Step profiler at the end of each epoch
+    #
+    #     # Save model state dictionary after training
+    #     self.save_model_state(epoch)
+    #     # print validation SMAE and MAE averages of epoch
+    #     # average_fold_val_smae = np.mean([f['best_val_smae'] for f in fold_performance])
+    #     # print(f"Average Validation SMAE across folds: {average_fold_val_smae}")
+    #     #
+    #     # average_fold_val_mae = np.mean([f['best_val_mae'] for f in fold_performance])
+    #     # print(f"Average Validation MAE across folds: {average_fold_val_mae}\n")
+    #
+    #     return self.best_metrics["mae"]
 
-            print("Training Participants Names: ", training_participant_name)
-            print("Validation Participant Name: ", validation_participant_name, "\n")
+    def run_fold(self, train_index, val_index=None, test_index=None, num_epochs=10, loocv=False):
+        """Runs a single fold of cross-validation, ensuring the model, optimizer, and scheduler are reset."""
 
-        else:
-            validation_participant_name = "unknown"
+        # ✅ Step 1: Reinitialize Model at the Start of Each Fold
+        self.initialize_model()
 
-        # Set the save path using the validation participant's name
-        # self.save_path = os.path.join("results", validation_participant_name)
-        # os.makedirs(self.save_path, exist_ok=True)  # Create the directory if it doesn't exist
-
-        print(
-            f"Train index: {train_index} and val index {validation_participant_name}, and test index {test_index}, and batch size {self.batch_size}")
-        # Prepare data loaders
-        self.train_loader, self.valid_loader, input_size = self.dataset.get_data_loader(
-            train_index, validation_participant_name)
-
-        self.target_scaler = self.dataset.target_scaler
+        # ✅ Step 2: Reset Optimizer and Scheduler
         self.optimizer, self.scheduler = create_optimizer(
             model=self.model, learning_rate=self.learning_rate,
-            weight_decay=self.weight_decay)
+            weight_decay=self.weight_decay
+        )
 
+        # ✅ Step 3: Set Save Path for Results
+        if loocv:
+            validation_participant_name = val_index[0] if val_index and len(val_index) > 0 else "unknown"
+            self.save_path = os.path.join("results", validation_participant_name)
+        else:
+            self.save_path = os.path.join("results", "current_run")
+
+        os.makedirs(self.save_path, exist_ok=True)
+
+        # ✅ Step 4: Prepare Data Loaders
+        self.train_loader, self.valid_loader, input_size = self.dataset.get_data_loader(
+            train_index, val_index, test_index, self.batch_size
+        )
+
+        self.target_scaler = self.dataset.target_scaler
+
+        # ✅ Debugging Output: Print fold information
+        # print(f"\nStarting Fold {self.current_fold}/{self.n_splits}")
+        print(f"Train subjects: {train_index}")
+        print(f"Validation subject: {val_index}")
+        print(f"Current Learning Rate: {self.optimizer.param_groups[0]['lr']}")
+        print(f"Model Parameters: {sum(p.numel() for p in self.model.parameters())}")
+
+        # ✅ Step 5: Training Loop
         with torch.profiler.profile(
                 schedule=torch.profiler.schedule(wait=1, warmup=1, active=3),
                 on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
@@ -244,16 +312,12 @@ class FOVALTrainer:
 
                 if self.check_early_stopping(epoch):
                     break
+
             profiler.step()  # Step profiler at the end of each epoch
 
-        # Save model state dictionary after training
-        self.save_model_state(epoch)
-        # print validation SMAE and MAE averages of epoch
-        # average_fold_val_smae = np.mean([f['best_val_smae'] for f in fold_performance])
-        # print(f"Average Validation SMAE across folds: {average_fold_val_smae}")
-        #
-        # average_fold_val_mae = np.mean([f['best_val_mae'] for f in fold_performance])
-        # print(f"Average Validation MAE across folds: {average_fold_val_mae}\n")
+        # ✅ Free GPU Memory After Each Fold
+        print("Training finished in epoch ", epoch)
+        torch.cuda.empty_cache()
 
         return self.best_metrics["mae"]
 

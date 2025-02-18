@@ -15,12 +15,12 @@ import warnings
 from src.dataset_classes.AbstractDatasetClass import AbstractDatasetClass
 from src.models.FOVAL.foval_preprocessor import remove_outliers_in_labels, binData, createFeatures, \
     detect_and_remove_outliers_in_features_iqr, clean_data, global_normalization, subject_wise_normalization, \
-    separate_features_and_targets
+    separate_features_and_targets, input_features
 from src.models.FOVAL.utilities import create_lstm_tensors_dataset, create_dataloaders_dataset
 
 warnings.filterwarnings("ignore")
 pd.set_option('display.max_columns', None)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class RobustVisionDataset(AbstractDatasetClass):
@@ -324,11 +324,11 @@ class RobustVisionDataset(AbstractDatasetClass):
         """
         train_loader = self.prepare_loader(train_index, batch_size, is_train=True)
         val_loader = self.prepare_loader(val_index, batch_size, is_train=False) if val_index is not None else None
-        test_loader = self.prepare_loader(test_index, batch_size, is_train=False) if test_index is not None else None
+        # test_loader = self.prepare_loader(test_index, batch_size, is_train=False) if test_index is not None else None
 
         input_size = train_loader.dataset[0][0].shape[1]  # Assuming the first dimension is batch_size
 
-        return train_loader, val_loader, test_loader, input_size
+        return train_loader, val_loader, input_size
 
     def prepare_loader(self, subject_index, batch_size, is_train=False):
         subjects = subject_index if isinstance(subject_index, list) else [subject_index]

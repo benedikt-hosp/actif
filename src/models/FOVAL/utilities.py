@@ -62,7 +62,7 @@ def create_lstm_tensors_dataset(X, y):
 def create_dataloaders_dataset(features_tensor, targets_tensor, batch_size):
     train_dataset = TensorDataset(features_tensor, targets_tensor)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                              drop_last=False, pin_memory=True, num_workers=2, prefetch_factor=2)
+                              drop_last=False, pin_memory=True, num_workers=6, prefetch_factor=2)
     return train_loader
 
 

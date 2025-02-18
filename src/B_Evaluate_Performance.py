@@ -24,14 +24,14 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 # ================ Device options
-device = torch.device("cuda")  # Replace 0 with the device number for your other GPU
+device = torch.device("cuda:0")  # Replace 0 with the device number for your other GPU
 
 # ================ Save folder options
 model_save_dir = "models"
 os.makedirs(model_save_dir, exist_ok=True)
 BASE_DIR = './'
 MODEL = "FOVAL"
-DATASET_NAME = "TUFTS"  # "ROBUSTVISION"  "TUFTS" "GIW"
+DATASET_NAME = "ROBUSTVISION"  # "ROBUSTVISION"  "TUFTS" "GIW"
 
 
 def build_paths(base_dir):
@@ -137,10 +137,10 @@ def test_baseline_model(trainer, modelName, dataset, outputFolder, num_repetitio
     dataset.current_features = remaining_features
     dataset.load_data()
 
-    trainer.setup(feature_count=feature_count, feature_names=remaining_features)
+    trainer.setup(features=remaining_features)
 
     # Perform cross-validation and get the performance results for each run
-    full_feature_performance = trainer.cross_validate(num_epochs=500, loocv=False, num_repeats=num_repetitions)
+    full_feature_performance = trainer.cross_validate(num_epochs=500)
 
     results['Baseline'] = full_feature_performance
 
@@ -206,7 +206,7 @@ if __name__ == '__main__':
 
     # 1. Baseline performance evaluation
     print(f" 1. Testing baseline {MODEL} on dataset {datasetName}")
-    # baseline_performance = test_baseline_model(trainer, MODEL, dataset, paths["save_path"], num_repetitions)
+    baseline_performance = test_baseline_model(trainer, MODEL, dataset, paths["evaluation_metrics_save_path"], num_repetitions)
 
     # 2. Loop over all feature lists (CSV files) and evaluate
     for file_name in os.listdir(paths["results_folder_path"]):
